@@ -1,0 +1,47 @@
+# OS and IDEs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node / Frontend
+**/node_modules/
+node_modules/
+node_modules_bak/
+dist/
+build/
+.env
+.env.local
+.env.*.local
+.eslintcache
+
+# Java / Maven / Backend
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+mvnw
+mvnw.cmd
+backend_run.log
+start.log
+
+# Database dumps
+*.dump
+*.sql.gz
