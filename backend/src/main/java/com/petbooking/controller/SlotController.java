@@ -58,7 +58,7 @@ public class SlotController {
                 deptQuotaRepository.save(dq);
             }
         }
-        
+
         return ResponseEntity.ok(savedSlot);
     }
 
@@ -101,12 +101,13 @@ public class SlotController {
             return ResponseEntity.ok(slot);
         }).orElse(ResponseEntity.notFound().build());
     }
-    
+
     @PostMapping("/{slotId}/quotas")
     public ResponseEntity<?> setQuota(@PathVariable Long slotId, @RequestBody DeptQuota quota) {
         // Validate slot exists, dept exists...
         // Simplified
-        Slot s = new Slot(); s.setSlotId(slotId);
+        Slot s = new Slot();
+        s.setSlotId(slotId);
         quota.setSlot(s);
         deptQuotaRepository.save(quota);
         return ResponseEntity.ok("Quota set");

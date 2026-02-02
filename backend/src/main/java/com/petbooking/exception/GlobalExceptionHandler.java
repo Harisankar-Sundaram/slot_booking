@@ -18,7 +18,7 @@ public class GlobalExceptionHandler {
         body.put("timestamp", LocalDateTime.now());
         body.put("message", ex.getMessage());
         body.put("status", HttpStatus.BAD_REQUEST.value());
-        
+
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         body.put("message", "An expected error occurred");
         body.put("details", ex.getMessage());
         body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        
+
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

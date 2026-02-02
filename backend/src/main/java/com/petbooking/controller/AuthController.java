@@ -17,6 +17,7 @@ public class AuthController {
 
     @PostMapping("/student/login")
     public ResponseEntity<?> studentLogin(@RequestBody Dtos.LoginRequest request) {
+        System.out.println("Login Request Received: " + request); // Debug
         authService.initiateStudentLogin(request);
         return ResponseEntity.ok(Map.of("message", "OTP sent to email"));
     }

@@ -8,11 +8,12 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "dept_quota", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"slot_id", "dept_id"})
+        @UniqueConstraint(columnNames = { "slot_id", "dept_id" })
 })
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class DeptQuota {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,9 +22,10 @@ public class DeptQuota {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "slot_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Slot slot;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "dept_id", nullable = false)
     private Department department;
 

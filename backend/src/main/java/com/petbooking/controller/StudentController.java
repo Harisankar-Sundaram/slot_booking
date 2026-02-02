@@ -28,14 +28,28 @@ public class StudentController {
     private BookingService bookingService;
 
     @GetMapping("/slots")
-    public ResponseEntity<List<Slot>> getAvailableSlots(Authentication auth) {
-        String rollNo = auth.getName();
-        Student student = studentRepository.findById(rollNo).orElseThrow();
-        
-        // Filter by category
-        List<Slot> slots = slotRepository.findByCategoryAndBookingOpenTrue(student.getCategory());
-        // ideally add quota info to response
-        return ResponseEntity.ok(slots);
+    public ResponseEntity<?> getAvailableSlots(Authentication auth) {
+        try {
+            if (auth == null) {
+                return ResponseEntity.status(401).body("Not Authenticated");
+            }
+            String rollNo = auth.getName();
+            System.out.println("Fetching slots for Student: " + rollNo);
+
+            Student student = studentRepository.findById(rollNo)
+                    .orElseThrow(() -> new RuntimeException("Student not found with RollNo: " + rollNo));
+
+            System.out.println("Student Category: " + student.getCategory());
+
+            // Filter by category
+            List<Slot> slots = slotRepository.findByCategoryAndBookingOpenTrue(student.getCategory());
+            System.out.println("Found " + slots.size() + " slots");
+
+            return ResponseEntity.ok(slots);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error fetching slots: " + e.getMessage());
+        }
     }
 
     @PostMapping("/book")

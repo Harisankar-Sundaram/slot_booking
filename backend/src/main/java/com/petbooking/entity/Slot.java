@@ -14,6 +14,7 @@ import com.petbooking.entity.Student.StudentCategory;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Slot {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,6 +39,9 @@ public class Slot {
 
     @Column(name = "purpose")
     private String purpose;
+
+    @OneToMany(mappedBy = "slot", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    private java.util.List<DeptQuota> quotas;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

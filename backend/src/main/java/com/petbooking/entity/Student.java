@@ -1,6 +1,7 @@
 package com.petbooking.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Student {
     @Id
     @Column(name = "roll_no", length = 20)
@@ -32,7 +34,7 @@ public class Student {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
-    
+
     public enum StudentCategory {
         DAY, HOSTEL_MALE, HOSTEL_FEMALE
     }

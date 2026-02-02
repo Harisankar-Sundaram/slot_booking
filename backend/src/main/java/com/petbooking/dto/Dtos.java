@@ -3,7 +3,7 @@ package com.petbooking.dto;
 import lombok.Data;
 
 public class Dtos {
-    
+
     @Data
     public static class LoginRequest {
         private String rollNo;
@@ -26,7 +26,7 @@ public class Dtos {
     public static class BookingRequest {
         private Long slotId;
     }
-    
+
     @Data
     public static class CreateSlotRequest {
         private String examDate; // YYYY-MM-DD

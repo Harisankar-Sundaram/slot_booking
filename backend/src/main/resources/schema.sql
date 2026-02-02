@@ -72,6 +72,19 @@ CREATE TABLE bookings (
     booked_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- Student Master Upload Table (Intermediate table for uploads)
+CREATE TABLE student_master_upload (
+    id BIGSERIAL PRIMARY KEY,
+    roll_no VARCHAR(20) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(120) NOT NULL UNIQUE,
+    dept_code VARCHAR(10) NOT NULL,
+    student_type VARCHAR(20) NOT NULL,
+    gender VARCHAR(10) NOT NULL,
+    uploaded_at TIMESTAMP,
+    uploaded_by_admin_id BIGINT
+);
+
 -- Indexes
 CREATE INDEX idx_students_dept_cat ON students(dept_id, category);
 CREATE INDEX idx_slots_cat_open ON slots(category, booking_open);
