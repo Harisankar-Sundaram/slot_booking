@@ -44,12 +44,14 @@ public class StudentMasterUploadService {
             int rowNum = row.getRowNum() + 1;
 
             try {
-                String rollNo = getCellValue(row, 0);
-                String name = getCellValue(row, 1);
+                // Excel columns: Name(0), RollNo(1), EmailID(2), Gender(3), Department(4),
+                // Hosteller/Dayscholar(5)
+                String name = getCellValue(row, 0);
+                String rollNo = getCellValue(row, 1);
                 String email = getCellValue(row, 2);
-                String deptCode = getCellValue(row, 3);
-                String studentType = getCellValue(row, 4);
-                String gender = getCellValue(row, 5);
+                String gender = getCellValue(row, 3);
+                String deptCode = getCellValue(row, 4);
+                String studentTypeRaw = getCellValue(row, 5);
 
                 if (isEmpty(rollNo) || isEmpty(name) || isEmpty(email) || isEmpty(deptCode)) {
                     errors.add("Row " + rowNum + ": Missing required fields (RollNo, Name, Email, Dept)");
@@ -57,13 +59,20 @@ public class StudentMasterUploadService {
                     continue;
                 }
 
-                if (!"DAY".equalsIgnoreCase(studentType) && !"HOSTEL".equalsIgnoreCase(studentType)) {
-                    errors.add("Row " + rowNum + ": Invalid Student Type (must be DAY or HOSTEL)");
+                // Map "Hosteller" -> "HOSTEL", "Dayscholar" -> "DAY"
+                String studentType;
+                if ("HOSTELLER".equalsIgnoreCase(studentTypeRaw) || "HOSTEL".equalsIgnoreCase(studentTypeRaw)) {
+                    studentType = "HOSTEL";
+                } else if ("DAYSCHOLAR".equalsIgnoreCase(studentTypeRaw) || "DAY".equalsIgnoreCase(studentTypeRaw)) {
+                    studentType = "DAY";
+                } else {
+                    errors.add("Row " + rowNum + ": Invalid Student Type '" + studentTypeRaw
+                            + "' (must be Hosteller/Hostel or Dayscholar/Day)");
                     skippedCount++;
                     continue;
                 }
 
-                if ("HOSTEL".equalsIgnoreCase(studentType)) {
+                if ("HOSTEL".equals(studentType)) {
                     if (!"MALE".equalsIgnoreCase(gender) && !"FEMALE".equalsIgnoreCase(gender)) {
                         errors.add("Row " + rowNum + ": Invalid Gender for Hosteller (must be MALE or FEMALE)");
                         skippedCount++;

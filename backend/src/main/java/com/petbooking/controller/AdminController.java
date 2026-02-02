@@ -87,6 +87,60 @@ public class AdminController {
         }
     }
 
+    @Autowired
+    private com.petbooking.repository.StudentMasterUploadRepository studentMasterUploadRepository;
+
+    @GetMapping("/student-master")
+    public ResponseEntity<?> getAllStudentMasterData() {
+        return ResponseEntity.ok(studentMasterUploadRepository.findAll());
+    }
+
+    @GetMapping("/student-master/strength")
+    public ResponseEntity<?> getCalculatedStrengthFromMaster() {
+        var allStudents = studentMasterUploadRepository.findAll();
+
+        // Group by deptCode and calculate counts
+        java.util.Map<String, java.util.Map<String, Integer>> deptStats = new java.util.HashMap<>();
+
+        for (var student : allStudents) {
+            String deptCode = student.getDeptCode();
+            deptStats.putIfAbsent(deptCode, new java.util.HashMap<>());
+            var stats = deptStats.get(deptCode);
+
+            String studentType = student.getStudentType();
+            String gender = student.getGender();
+
+            if ("DAY".equalsIgnoreCase(studentType)) {
+                stats.put("dayCount", stats.getOrDefault("dayCount", 0) + 1);
+            } else if ("HOSTEL".equalsIgnoreCase(studentType)) {
+                if ("MALE".equalsIgnoreCase(gender)) {
+                    stats.put("hostelMaleCount", stats.getOrDefault("hostelMaleCount", 0) + 1);
+                } else if ("FEMALE".equalsIgnoreCase(gender)) {
+                    stats.put("hostelFemaleCount", stats.getOrDefault("hostelFemaleCount", 0) + 1);
+                }
+            }
+        }
+
+        // Convert to list of objects
+        java.util.List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
+        for (var entry : deptStats.entrySet()) {
+            java.util.Map<String, Object> item = new java.util.HashMap<>();
+            item.put("deptCode", entry.getKey());
+            item.put("dayCount", entry.getValue().getOrDefault("dayCount", 0));
+            item.put("hostelMaleCount", entry.getValue().getOrDefault("hostelMaleCount", 0));
+            item.put("hostelFemaleCount", entry.getValue().getOrDefault("hostelFemaleCount", 0));
+            int total = (int) item.get("dayCount") + (int) item.get("hostelMaleCount")
+                    + (int) item.get("hostelFemaleCount");
+            item.put("total", total);
+            result.add(item);
+        }
+
+        // Sort by deptCode
+        result.sort((a, b) -> ((String) a.get("deptCode")).compareTo((String) b.get("deptCode")));
+
+        return ResponseEntity.ok(result);
+    }
+
     @PutMapping("/students/{rollNo}")
     public ResponseEntity<?> updateStudent(
             @PathVariable String rollNo,
@@ -114,5 +168,65 @@ public class AdminController {
             e.printStackTrace();
             return ResponseEntity.badRequest().body("Update failed: " + e.getMessage());
         }
+    }
+
+    // ========== NEW: Slot Generation Endpoints ==========
+    @Autowired
+    private com.petbooking.service.SlotGenerationService slotGenerationService;
+    @Autowired
+    private com.petbooking.repository.ExamSlotRepository examSlotRepository;
+
+    @PostMapping("/generate-slots")
+    public ResponseEntity<?> generateSlots(@RequestBody java.util.Map<String, Object> request) {
+        try {
+            int systemsPerSession = (int) request.get("systemsPerSession");
+            String startDateStr = (String) request.getOrDefault("startDate", java.time.LocalDate.now().toString());
+            java.time.LocalDate startDate = java.time.LocalDate.parse(startDateStr);
+
+            var result = slotGenerationService.generateSlots(systemsPerSession, startDate);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Slot generation failed: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/exam-slots")
+    public ResponseEntity<?> getAllExamSlots() {
+        return ResponseEntity.ok(examSlotRepository.findAll());
+    }
+
+    // ========== NEW: Exam Initialization Endpoints ==========
+    @Autowired
+    private com.petbooking.service.ExamInitService examInitService;
+
+    @PostMapping("/exam/initialize")
+    public ResponseEntity<?> initializeExam(@RequestBody com.petbooking.dto.ExamDtos.ExamInitRequest request) {
+        try {
+            var response = examInitService.initializeExam(request);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Exam initialization failed: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/exams")
+    public ResponseEntity<?> getAllExams() {
+        return ResponseEntity.ok(examInitService.getAllExams());
+    }
+
+    @GetMapping("/exams/{examId}")
+    public ResponseEntity<?> getExamById(@PathVariable Long examId) {
+        try {
+            return ResponseEntity.ok(examInitService.getExamById(examId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/exams/{examId}/quotas")
+    public ResponseEntity<?> getExamQuotas(@PathVariable Long examId) {
+        return ResponseEntity.ok(examInitService.getQuotasForExam(examId));
     }
 }

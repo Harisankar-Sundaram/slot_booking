@@ -3,6 +3,12 @@ import axios from "axios";
 
 const AuthContext = createContext();
 
+// Initialize axios header from localStorage immediately
+const storedToken = localStorage.getItem("token");
+if (storedToken) {
+    axios.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+}
+
 export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem("token"));
     const [role, setRole] = useState(localStorage.getItem("role"));
@@ -11,7 +17,6 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (token) {
             axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-            // Decode token to get role/user if needed, or rely on stored role
         } else {
             delete axios.defaults.headers.common["Authorization"];
         }

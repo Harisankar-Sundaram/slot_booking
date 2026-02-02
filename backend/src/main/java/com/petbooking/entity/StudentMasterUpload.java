@@ -35,14 +35,6 @@ public class StudentMasterUpload {
     @Column(nullable = false)
     private String gender; // MALE / FEMALE
 
-    @Column(name = "uploaded_at")
-    private LocalDateTime uploadedAt;
-
     @Column(name = "uploaded_by_admin_id")
     private Long uploadedByAdminId;
-
-    @PrePersist
-    public void prePersist() {
-        this.uploadedAt = LocalDateTime.now();
-    }
 }

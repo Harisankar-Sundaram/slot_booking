@@ -1,94 +1,148 @@
--- Enable Row Level Security (good practice, though we mostly use app-level logic)
--- Create ENUM type
-CREATE TYPE student_category AS ENUM ('DAY', 'HOSTEL_MALE', 'HOSTEL_FEMALE');
+-- ENUM for student type
+CREATE TYPE student_type_enum AS ENUM ('DAY', 'HOSTEL');
 
 -- Departments Table
-CREATE TABLE departments (
+CREATE TABLE IF NOT EXISTS departments (
     dept_id BIGSERIAL PRIMARY KEY,
-    dept_code VARCHAR(10) NOT NULL UNIQUE
+    dept_code CHAR(10) NOT NULL UNIQUE
 );
 
--- Students Table
-CREATE TABLE students (
+-- Students Table (Updated)
+CREATE TABLE IF NOT EXISTS students (
     roll_no VARCHAR(20) PRIMARY KEY,
-    name VARCHAR(35) NOT NULL,
+    name VARCHAR(100) NOT NULL,
     email VARCHAR(120) NOT NULL UNIQUE,
-    dept_id BIGINT NOT NULL REFERENCES departments(dept_id),
-    category student_category NOT NULL,
+    department VARCHAR(50),
+    dept_id BIGINT REFERENCES departments(dept_id),
+    student_type VARCHAR(10) CHECK (student_type IN ('DAY','HOSTEL')),
+    gender VARCHAR(5) CHECK (gender IN ('M','F')),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 -- Admins Table
-CREATE TABLE admins (
+CREATE TABLE IF NOT EXISTS admins (
     admin_id BIGSERIAL PRIMARY KEY,
     email VARCHAR(120) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Slots Table
-CREATE TABLE slots (
+-- Admin Config (Stores systems_per_session)
+CREATE TABLE IF NOT EXISTS admin_config (
+    id SERIAL PRIMARY KEY,
+    systems_per_session INT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Exam Days Table
+CREATE TABLE IF NOT EXISTS exam_days (
+    id SERIAL PRIMARY KEY,
+    exam_date DATE,
+    day_number INT
+);
+
+-- Exam Slots Table (CRITICAL - Pre-computed slots)
+CREATE TABLE IF NOT EXISTS exam_slots (
+    id SERIAL PRIMARY KEY,
+    exam_day_id INT REFERENCES exam_days(id),
+    session VARCHAR(10) CHECK (session IN ('DAY','NIGHT')),
+    department VARCHAR(50),
+    student_type VARCHAR(10),
+    gender VARCHAR(5), -- 'M','F','ANY'
+    max_capacity INT,
+    booked_count INT DEFAULT 0
+);
+
+-- Bookings Table (References exam_slots)
+CREATE TABLE IF NOT EXISTS bookings (
+    id BIGSERIAL PRIMARY KEY,
+    student_id VARCHAR(20) REFERENCES students(roll_no),
+    exam_slot_id INT REFERENCES exam_slots(id),
+    booked_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(student_id)
+);
+
+-- Old tables (keeping for compatibility, can be deprecated later)
+CREATE TABLE IF NOT EXISTS slots (
     slot_id BIGSERIAL PRIMARY KEY,
     exam_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    category student_category NOT NULL,
+    category VARCHAR(20) NOT NULL,
     purpose VARCHAR(255),
     booking_open BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT valid_time_range CHECK (start_time < end_time)
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Dept Exam Strength (How many students expected)
-CREATE TABLE dept_exam_strength (
+CREATE TABLE IF NOT EXISTS dept_exam_strength (
     strength_id BIGSERIAL PRIMARY KEY,
-    dept_id BIGINT NOT NULL UNIQUE REFERENCES departments(dept_id),
+    dept_id BIGINT REFERENCES departments(dept_id),
     day_count INT NOT NULL DEFAULT 0,
     hostel_male_count INT NOT NULL DEFAULT 0,
     hostel_female_count INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT positive_strength CHECK (day_count >= 0 AND hostel_male_count >= 0 AND hostel_female_count >= 0)
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Dept Quota (Calculated specific seats for a slot)
-CREATE TABLE dept_quota (
+CREATE TABLE IF NOT EXISTS dept_quota (
     quota_id BIGSERIAL PRIMARY KEY,
-    slot_id BIGINT NOT NULL REFERENCES slots(slot_id),
-    dept_id BIGINT NOT NULL REFERENCES departments(dept_id),
+    slot_id BIGINT REFERENCES slots(slot_id),
+    dept_id BIGINT REFERENCES departments(dept_id),
     quota_capacity INT NOT NULL,
     booked_count INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT unique_slot_dept UNIQUE(slot_id, dept_id),
-    CONSTRAINT valid_quota CHECK (quota_capacity >= 0),
-    CONSTRAINT valid_booking CHECK (booked_count <= quota_capacity)
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Bookings Table
-CREATE TABLE bookings (
-    booking_id BIGSERIAL PRIMARY KEY,
-    roll_no VARCHAR(20) NOT NULL UNIQUE REFERENCES students(roll_no),
-    slot_id BIGINT NOT NULL REFERENCES slots(slot_id),
-    dept_id BIGINT NOT NULL REFERENCES departments(dept_id),
-    booked_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
--- Student Master Upload Table (Intermediate table for uploads)
-CREATE TABLE student_master_upload (
+CREATE TABLE IF NOT EXISTS student_master_upload (
     id BIGSERIAL PRIMARY KEY,
     roll_no VARCHAR(20) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(120) NOT NULL UNIQUE,
-    dept_code VARCHAR(10) NOT NULL,
+    dept_code CHAR(10) NOT NULL,
     student_type VARCHAR(20) NOT NULL,
     gender VARCHAR(10) NOT NULL,
-    uploaded_at TIMESTAMP,
     uploaded_by_admin_id BIGINT
 );
 
 -- Indexes
-CREATE INDEX idx_students_dept_cat ON students(dept_id, category);
-CREATE INDEX idx_slots_cat_open ON slots(category, booking_open);
-CREATE INDEX idx_dept_quota_slot_dept ON dept_quota(slot_id, dept_id);
-CREATE INDEX idx_bookings_slot ON bookings(slot_id);
-CREATE INDEX idx_bookings_dept ON bookings(dept_id);
-CREATE INDEX idx_bookings_roll ON bookings(roll_no);
+CREATE INDEX IF NOT EXISTS idx_students_dept ON students(department);
+CREATE INDEX IF NOT EXISTS idx_exam_slots_lookup ON exam_slots(department, student_type, gender);
+CREATE INDEX IF NOT EXISTS idx_bookings_slot ON bookings(exam_slot_id);
+
+-- ========== NEW: Exam Initialization Tables ==========
+
+-- Exams Table
+CREATE TABLE IF NOT EXISTS exams (
+    exam_id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    total_days INT,
+    per_dept_capacity INT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Exam Slot Seats (Individual seat records)
+CREATE TABLE IF NOT EXISTS exam_slot_seats (
+    slot_id BIGSERIAL PRIMARY KEY,
+    exam_id BIGINT NOT NULL REFERENCES exams(exam_id),
+    slot_date DATE NOT NULL,
+    roll_number VARCHAR(20), -- NULL until booked
+    dept_id BIGINT REFERENCES departments(dept_id),
+    category_type INT NOT NULL, -- 1=Day, 2=HostelM, 3=HostelF
+    status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE'
+);
+
+-- Exam Quotas (Department quotas by category)
+CREATE TABLE IF NOT EXISTS exam_quotas (
+    id BIGSERIAL PRIMARY KEY,
+    exam_id BIGINT NOT NULL REFERENCES exams(exam_id),
+    dept_id BIGINT NOT NULL REFERENCES departments(dept_id),
+    category_type INT NOT NULL, -- 1=Day Scholar, 2=Hostel Boys, 3=Hostel Girls
+    max_count INT NOT NULL,
+    current_fill INT NOT NULL DEFAULT 0
+);
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_exam_slot_seats_lookup ON exam_slot_seats(exam_id, dept_id, category_type, status);
+CREATE INDEX IF NOT EXISTS idx_exam_quotas_lookup ON exam_quotas(exam_id, dept_id, category_type);
+

@@ -62,4 +62,43 @@ public class StudentController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    // ========== NEW: Exam Slot Endpoints ==========
+    @Autowired
+    private com.petbooking.repository.ExamSlotRepository examSlotRepository;
+
+    @GetMapping("/exam-slots")
+    public ResponseEntity<?> getAvailableExamSlots(Authentication auth) {
+        try {
+            String rollNo = auth.getName();
+            Student student = studentRepository.findById(rollNo)
+                    .orElseThrow(() -> new RuntimeException("Student not found"));
+
+            // Map category to studentType and gender
+            String studentType = student.getCategory() == Student.StudentCategory.DAY ? "DAY" : "HOSTEL";
+            String gender = student.getCategory() == Student.StudentCategory.HOSTEL_MALE ? "M"
+                    : student.getCategory() == Student.StudentCategory.HOSTEL_FEMALE ? "F" : "ANY";
+            String dept = student.getDepartment().getDeptCode();
+
+            var slots = examSlotRepository.findAvailableSlots(dept, studentType, gender);
+            return ResponseEntity.ok(slots);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error fetching exam slots: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/book-exam-slot")
+    public ResponseEntity<?> bookExamSlot(@RequestBody java.util.Map<String, Integer> request, Authentication auth) {
+        String rollNo = auth.getName();
+        try {
+            Integer examSlotId = request.get("examSlotId");
+            if (examSlotId == null) {
+                return ResponseEntity.badRequest().body("examSlotId is required");
+            }
+            Booking booking = bookingService.bookExamSlot(rollNo, examSlotId);
+            return ResponseEntity.ok(booking);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

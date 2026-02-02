@@ -3,16 +3,16 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, LayoutDashboard, Database, Users, Calendar, LogOut, GraduationCap, Menu, X } from "lucide-react";
+import { Loader2, LayoutDashboard, Database, Users, Calendar, LogOut, GraduationCap, Menu, X, FileText, Pencil, Trash2, Lock, Unlock } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function AdminDashboard() {
-    const [activeTab, setActiveTab] = useState("slots");
+    const [activeTab, setActiveTab] = useState("exams");
     const { logout } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const menuItems = [
-        { id: "slots", label: "Manage Slots", icon: LayoutDashboard },
+        { id: "exams", label: "Exam Setup", icon: FileText },
         { id: "strength", label: "Dept Strength", icon: Database },
         { id: "bookings", label: "View Bookings", icon: Calendar },
         { id: "students", label: "Student Data", icon: Users },
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
                     </header>
 
                     <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 md:p-8 min-h-[500px]">
-                        {activeTab === "slots" && <SlotManager />}
+                        {activeTab === "exams" && <ExamManager />}
                         {activeTab === "strength" && <DeptStrengthManager />}
                         {activeTab === "bookings" && <BookingViewer />}
                         {activeTab === "students" && <StudentDataManager />}
@@ -177,7 +177,7 @@ function SlotManager() {
                 {slots.map(s => (
                     <div key={s.slotId} className="flex justify-between items-center p-4 border rounded-xl hover:shadow-md transition-shadow">
                         <div><h4 className="font-bold">{s.purpose || "Slot"}</h4><p className="text-sm text-gray-500">{s.examDate} • {s.startTime}-{s.endTime} • <span className="font-mono text-xs bg-gray-100 px-1 rounded">{s.category}</span></p></div>
-                        <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => handleEdit(s)}>Edit</Button><Button size="sm" variant={s.bookingOpen ? "secondary" : "default"} onClick={() => handleToggle(s.slotId)}>{s.bookingOpen ? "Close" : "Open"}</Button><Button size="sm" variant="destructive" onClick={() => handleDelete(s.slotId)}>Del</Button></div>
+                        <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => handleEdit(s)}>Edit</Button><Button size="sm" variant={s.bookingOpen ? "secondary" : "default"} onClick={() => handleToggle(s.slotId)}>{s.bookingOpen ? "Close" : "Open"}</Button><Button size="sm" variant="destructive" onClick={() => handleDelete(s.slotId)}>Delete</Button></div>
                     </div>
                 ))}
             </div>
@@ -185,34 +185,107 @@ function SlotManager() {
     );
 }
 
-function DeptStrengthManager() {
-    const [departments, setDepartments] = useState([]);
-    const [strengths, setStrengths] = useState([]);
-    const [showForm, setShowForm] = useState(false);
-    const [formData, setFormData] = useState({ deptId: "", dayCount: "", hostelMaleCount: "", hostelFemaleCount: "" });
 
-    useEffect(() => { loadData(); }, []);
-    const loadData = async () => { try { const [d, s] = await Promise.all([axios.get("/api/admin/departments"), axios.get("/api/admin/strength")]); setDepartments(d.data); setStrengths(s.data); } catch (e) { } };
-    const handleSubmit = async (e) => {
-        e.preventDefault(); try { await axios.post("/api/admin/strength", { deptId: parseInt(formData.deptId), dayCount: parseInt(formData.dayCount) || 0, hostelMaleCount: parseInt(formData.hostelMaleCount) || 0, hostelFemaleCount: parseInt(formData.hostelFemaleCount) || 0 }); loadData(); setShowForm(false); setFormData({ deptId: "", dayCount: "", hostelMaleCount: "", hostelFemaleCount: "" }); } catch (e) { alert("Error"); }
+function DeptStrengthManager() {
+    const [strengths, setStrengths] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => { loadStrengths(); }, []);
+
+    const loadStrengths = async () => {
+        setLoading(true);
+        try {
+            const res = await axios.get("/api/admin/student-master/strength");
+            setStrengths(res.data);
+        } catch (e) {
+            console.error("Failed to load strengths", e);
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const totalDay = strengths.reduce((sum, s) => sum + (s.dayCount || 0), 0);
+    const totalHostelM = strengths.reduce((sum, s) => sum + (s.hostelMaleCount || 0), 0);
+    const totalHostelF = strengths.reduce((sum, s) => sum + (s.hostelFemaleCount || 0), 0);
+    const grandTotal = totalDay + totalHostelM + totalHostelF;
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between"><h3 className="text-lg font-bold">Strengths</h3><Button onClick={() => setShowForm(!showForm)}>{showForm ? "Cancel" : "+ Add"}</Button></div>
-            {showForm && (
-                <form onSubmit={handleSubmit} className="p-4 border rounded-xl bg-gray-50 flex flex-col gap-4">
-                    <select className="p-2 rounded border" value={formData.deptId} onChange={e => setFormData({ ...formData, deptId: e.target.value })}><option value="">Select Dept</option>{departments.map(d => <option key={d.deptId} value={d.deptId}>{d.deptCode}</option>)}</select>
-                    <div className="grid grid-cols-3 gap-4"><Input placeholder="Day" type="number" value={formData.dayCount} onChange={e => setFormData({ ...formData, dayCount: e.target.value })} /><Input placeholder="Hostel M" type="number" value={formData.hostelMaleCount} onChange={e => setFormData({ ...formData, hostelMaleCount: e.target.value })} /><Input placeholder="Hostel F" type="number" value={formData.hostelFemaleCount} onChange={e => setFormData({ ...formData, hostelFemaleCount: e.target.value })} /></div>
-                    <Button type="submit" className="bg-black text-white">Save</Button>
-                </form>
-            )}
-            <div className="border rounded-xl overflow-hidden">
-                <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-100 text-gray-700 font-bold"><tr><th className="p-3">Dept</th><th className="p-3">Day</th><th className="p-3">Hostel M</th><th className="p-3">Hostel F</th><th className="p-3">Action</th></tr></thead>
-                    <tbody>{strengths.map(s => <tr key={s.strengthId} className="border-t hover:bg-gray-50"><td className="p-3 font-bold">{s.department?.deptCode}</td><td className="p-3">{s.dayCount}</td><td className="p-3">{s.hostelMaleCount}</td><td className="p-3">{s.hostelFemaleCount}</td><td className="p-3"><Button size="sm" variant="outline" onClick={() => { setFormData({ deptId: s.department?.deptId, dayCount: s.dayCount, hostelMaleCount: s.hostelMaleCount, hostelFemaleCount: s.hostelFemaleCount }); setShowForm(true); }}>Edit</Button></td></tr>)}</tbody>
-                </table>
+            <div className="flex justify-between items-center">
+                <div>
+                    <h3 className="text-lg font-bold">Department Strength (Auto-Calculated)</h3>
+                    <p className="text-sm text-gray-500">Calculated from uploaded student master data.</p>
+                </div>
+                <Button onClick={loadStrengths} disabled={loading} variant="outline">
+                    {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Refresh"}
+                </Button>
             </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                    <span className="text-blue-600 font-medium text-sm">Day Scholars</span>
+                    <p className="font-black text-2xl text-blue-700">{totalDay}</p>
+                </div>
+                <div className="bg-cyan-50 p-4 rounded-xl border border-cyan-100 text-center">
+                    <span className="text-cyan-600 font-medium text-sm">Hostel Boys</span>
+                    <p className="font-black text-2xl text-cyan-700">{totalHostelM}</p>
+                </div>
+                <div className="bg-pink-50 p-4 rounded-xl border border-pink-100 text-center">
+                    <span className="text-pink-600 font-medium text-sm">Hostel Girls</span>
+                    <p className="font-black text-2xl text-pink-700">{totalHostelF}</p>
+                </div>
+                <div className="bg-gray-100 p-4 rounded-xl border border-gray-200 text-center">
+                    <span className="text-gray-600 font-medium text-sm">Grand Total</span>
+                    <p className="font-black text-2xl text-gray-800">{grandTotal}</p>
+                </div>
+            </div>
+
+            {strengths.length === 0 ? (
+                <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
+                    No student data uploaded yet. Upload master Excel in "Student Data" section.
+                </div>
+            ) : (
+                <div className="border rounded-xl overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-100 text-gray-700 font-bold">
+                            <tr>
+                                <th className="p-3">Department</th>
+                                <th className="p-3 text-center">Day Scholars</th>
+                                <th className="p-3 text-center">Hostel Boys</th>
+                                <th className="p-3 text-center">Hostel Girls</th>
+                                <th className="p-3 text-center">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {strengths.map((s, idx) => (
+                                <tr key={idx} className="border-t hover:bg-gray-50">
+                                    <td className="p-3 font-bold">{s.deptCode}</td>
+                                    <td className="p-3 text-center">
+                                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold">{s.dayCount}</span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                        <span className="bg-cyan-100 text-cyan-700 px-2 py-1 rounded font-bold">{s.hostelMaleCount}</span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                        <span className="bg-pink-100 text-pink-700 px-2 py-1 rounded font-bold">{s.hostelFemaleCount}</span>
+                                    </td>
+                                    <td className="p-3 text-center font-black">{s.total}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 font-bold">
+                            <tr className="border-t-2 border-gray-300">
+                                <td className="p-3">TOTAL</td>
+                                <td className="p-3 text-center text-blue-700">{totalDay}</td>
+                                <td className="p-3 text-center text-cyan-700">{totalHostelM}</td>
+                                <td className="p-3 text-center text-pink-700">{totalHostelF}</td>
+                                <td className="p-3 text-center text-gray-800">{grandTotal}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            )}
         </div>
     );
 }
@@ -341,6 +414,8 @@ function StudentDataManager() {
     const [uploadResult, setUploadResult] = useState(null);
     const [editingStudent, setEditingStudent] = useState(null);
     const [editForm, setEditForm] = useState({ name: "", email: "", deptId: "", category: "DAY" });
+    const [sortKey, setSortKey] = useState("rollNo");
+    const [sortDirection, setSortDirection] = useState("asc");
 
     useEffect(() => {
         loadStudents();
@@ -348,7 +423,7 @@ function StudentDataManager() {
     }, []);
 
     const loadStudents = () => {
-        axios.get("/api/admin/students")
+        axios.get("/api/admin/student-master")
             .then(res => setStudents(res.data))
             .catch(err => console.error(err));
     };
@@ -374,6 +449,7 @@ function StudentDataManager() {
                 headers: { "Content-Type": "multipart/form-data" }
             });
             setUploadResult(res.data);
+            loadStudents(); // Reload students after upload
             e.target.value = null; // reset input
         } catch (error) {
             alert("Upload failed: " + (error.response?.data || error.message));
@@ -404,12 +480,35 @@ function StudentDataManager() {
         }
     };
 
+    const handleSort = (key) => {
+        if (sortKey === key) {
+            setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+        } else {
+            setSortKey(key);
+            setSortDirection("asc");
+        }
+    };
+
+    const sortedStudents = [...students].sort((a, b) => {
+        const aVal = (a[sortKey] || "").toString().toLowerCase();
+        const bVal = (b[sortKey] || "").toString().toLowerCase();
+        if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+    });
+
+    const SortIcon = ({ column }) => (
+        <span className="ml-1 text-gray-400">
+            {sortKey === column ? (sortDirection === "asc" ? "▲" : "▼") : "⇅"}
+        </span>
+    );
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-start">
                 <div>
-                    <h3 className="text-lg font-bold">Registered Students ({students.length})</h3>
-                    <p className="text-sm text-gray-500">View registered students and upload master data.</p>
+                    <h3 className="text-lg font-bold">Uploaded Students ({students.length})</h3>
+                    <p className="text-sm text-gray-500">View uploaded student master data from Excel. Click headers to sort.</p>
                 </div>
                 <div>
                     <label className={`cursor-pointer bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -511,29 +610,218 @@ function StudentDataManager() {
                 <table className="w-full text-sm text-left">
                     <thead className="bg-gray-100 text-gray-700 font-bold">
                         <tr>
-                            <th className="p-3">Roll No</th>
-                            <th className="p-3">Name</th>
-                            <th className="p-3">Email</th>
-                            <th className="p-3">Dept</th>
-                            <th className="p-3">Category</th>
-                            <th className="p-3 text-right">Actions</th>
+                            <th className="p-3 cursor-pointer hover:bg-gray-200 transition-colors select-none" onClick={() => handleSort("rollNo")}>
+                                Roll No<SortIcon column="rollNo" />
+                            </th>
+                            <th className="p-3 cursor-pointer hover:bg-gray-200 transition-colors select-none" onClick={() => handleSort("name")}>
+                                Name<SortIcon column="name" />
+                            </th>
+                            <th className="p-3 cursor-pointer hover:bg-gray-200 transition-colors select-none" onClick={() => handleSort("email")}>
+                                Email<SortIcon column="email" />
+                            </th>
+                            <th className="p-3 cursor-pointer hover:bg-gray-200 transition-colors select-none" onClick={() => handleSort("deptCode")}>
+                                Dept<SortIcon column="deptCode" />
+                            </th>
+                            <th className="p-3 cursor-pointer hover:bg-gray-200 transition-colors select-none" onClick={() => handleSort("studentType")}>
+                                Type<SortIcon column="studentType" />
+                            </th>
+                            <th className="p-3 cursor-pointer hover:bg-gray-200 transition-colors select-none" onClick={() => handleSort("gender")}>
+                                Gender<SortIcon column="gender" />
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {students.map(s => (
-                            <tr key={s.rollNo} className="border-t hover:bg-gray-50">
+                        {sortedStudents.map(s => (
+                            <tr key={s.id} className="border-t hover:bg-gray-50">
                                 <td className="p-3 font-mono font-bold">{s.rollNo}</td>
                                 <td className="p-3">{s.name}</td>
                                 <td className="p-3 text-gray-500">{s.email}</td>
-                                <td className="p-3">{s.department?.deptCode}</td>
-                                <td className="p-3"><span className="px-2 py-1 bg-gray-100 rounded text-xs font-bold">{s.category}</span></td>
-                                <td className="p-3 text-right">
-                                    <Button variant="outline" size="sm" onClick={() => startEdit(s)}>Edit</Button>
-                                </td>
+                                <td className="p-3">{s.deptCode}</td>
+                                <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${s.studentType === 'HOSTEL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{s.studentType}</span></td>
+                                <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${s.gender === 'MALE' ? 'bg-cyan-100 text-cyan-700' : 'bg-pink-100 text-pink-700'}`}>{s.gender}</span></td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
+            </div>
+        </div>
+    );
+}
+
+function ExamManager() {
+    const [exams, setExams] = useState([]);
+    const [departments, setDepartments] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        examName: "",
+        startDate: "",
+        endDate: "",
+        totalDays: 1,
+        perDeptCapacity: 100,
+        deptCategories: []
+    });
+
+    useEffect(() => { loadData(); }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const [examsRes, deptRes] = await Promise.all([
+                axios.get("/api/admin/exams"),
+                axios.get("/api/admin/departments")
+            ]);
+            setExams(examsRes.data);
+            setDepartments(deptRes.data);
+            const cats = deptRes.data.map(d => ({
+                deptId: d.deptId,
+                deptCode: d.deptCode,
+                dayScholarCount: 0,
+                hostellerBoysCount: 0,
+                hostellerGirlsCount: 0
+            }));
+            setFormData(prev => ({ ...prev, deptCategories: cats }));
+        } catch (e) {
+            console.error("Failed to load data", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateDeptCategory = (deptId, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            deptCategories: prev.deptCategories.map(d =>
+                d.deptId === deptId ? { ...d, [field]: parseInt(value) || 0 } : d
+            )
+        }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!formData.examName || !formData.startDate || !formData.endDate) {
+            alert("Please fill all required fields");
+            return;
+        }
+        setLoading(true);
+        try {
+            const payload = {
+                examName: formData.examName,
+                startDate: formData.startDate,
+                endDate: formData.endDate,
+                totalDays: formData.totalDays,
+                perDeptCapacity: formData.perDeptCapacity,
+                deptCategories: formData.deptCategories.map(d => ({
+                    deptId: d.deptId,
+                    dayScholarCount: d.dayScholarCount,
+                    hostellerBoysCount: d.hostellerBoysCount,
+                    hostellerGirlsCount: d.hostellerGirlsCount
+                }))
+            };
+            const res = await axios.post("/api/admin/exam/initialize", payload);
+            alert(`Exam created! ID: ${res.data.examId}, Slots: ${res.data.totalSlotsGenerated}, Quotas: ${res.data.quotasCreated}`);
+            loadData();
+            setFormData(prev => ({
+                ...prev,
+                examName: "",
+                startDate: "",
+                endDate: "",
+                totalDays: 1,
+                deptCategories: prev.deptCategories.map(d => ({ ...d, dayScholarCount: 0, hostellerBoysCount: 0, hostellerGirlsCount: 0 }))
+            }));
+        } catch (err) {
+            alert("Failed: " + (err.response?.data || err.message));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const totalSlots = formData.deptCategories.reduce((sum, d) =>
+        sum + d.dayScholarCount + d.hostellerBoysCount + d.hostellerGirlsCount, 0);
+
+    return (
+        <div className="space-y-8">
+            <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100">
+                <h3 className="text-xl font-bold mb-6 text-gray-800">🎓 Initialize New Exam</h3>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase">Exam Name *</label>
+                            <Input placeholder="e.g. Mid-Term 2026" value={formData.examName} onChange={e => setFormData({ ...formData, examName: e.target.value })} required />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase">Start Date *</label>
+                            <Input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} required />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase">End Date *</label>
+                            <Input type="date" value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} required />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase">Total Exam Days</label>
+                            <Input type="number" value={formData.totalDays} onChange={e => setFormData({ ...formData, totalDays: parseInt(e.target.value) || 1 })} min={1} />
+                            <p className="text-xs text-gray-400">Number of days slots will be distributed over</p>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase">Per Dept Capacity</label>
+                            <Input type="number" value={formData.perDeptCapacity} onChange={e => setFormData({ ...formData, perDeptCapacity: parseInt(e.target.value) || 100 })} min={1} />
+                            <p className="text-xs text-gray-400">Max students per department for this exam</p>
+                        </div>
+                    </div>
+                    <div className="pt-4 border-t">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-bold text-gray-700">Department Category Quotas</h4>
+                            <span className="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-bold">Total Slots: {totalSlots}</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-100 text-gray-600 text-xs uppercase">
+                                    <tr><th className="p-3 text-left">Department</th><th className="p-3 text-center">Day Scholars</th><th className="p-3 text-center">Hostel Boys</th><th className="p-3 text-center">Hostel Girls</th><th className="p-3 text-center">Total</th></tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {formData.deptCategories.map(dept => (
+                                        <tr key={dept.deptId} className="hover:bg-gray-50">
+                                            <td className="p-3 font-bold">{dept.deptCode}</td>
+                                            <td className="p-3"><Input type="number" className="w-24 text-center mx-auto" value={dept.dayScholarCount} onChange={e => updateDeptCategory(dept.deptId, 'dayScholarCount', e.target.value)} min={0} /></td>
+                                            <td className="p-3"><Input type="number" className="w-24 text-center mx-auto" value={dept.hostellerBoysCount} onChange={e => updateDeptCategory(dept.deptId, 'hostellerBoysCount', e.target.value)} min={0} /></td>
+                                            <td className="p-3"><Input type="number" className="w-24 text-center mx-auto" value={dept.hostellerGirlsCount} onChange={e => updateDeptCategory(dept.deptId, 'hostellerGirlsCount', e.target.value)} min={0} /></td>
+                                            <td className="p-3 text-center font-bold text-indigo-600">{dept.dayScholarCount + dept.hostellerBoysCount + dept.hostellerGirlsCount}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3">
+                        {loading ? <><Loader2 className="animate-spin mr-2 h-4 w-4" /> Initializing...</> : "🚀 Initialize Exam & Generate Slots"}
+                    </Button>
+                </form>
+            </div>
+            <div>
+                <h3 className="text-lg font-bold mb-4">📋 Existing Exams</h3>
+                {exams.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">No exams created yet.</div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                        {exams.map(exam => (
+                            <div key={exam.examId} className="flex justify-between items-center p-4 border rounded-xl hover:shadow-md transition-shadow">
+                                <div>
+                                    <h4 className="font-bold text-lg">{exam.name}</h4>
+                                    <p className="text-sm text-gray-500">{exam.startDate} → {exam.endDate} • {exam.totalDays} days</p>
+                                    <p className="text-xs text-gray-400 mt-1">ID: {exam.examId} • Capacity: {exam.perDeptCapacity}/dept</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button size="sm" variant="outline" title="Edit Exam"><Pencil className="h-4 w-4" /></Button>
+                                    <Button size="sm" variant={exam.isOpen ? "secondary" : "default"} title={exam.isOpen ? "Close Booking" : "Open Booking"}>
+                                        {exam.isOpen ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                                    </Button>
+                                    <Button size="sm" variant="destructive" title="Delete Exam"><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
