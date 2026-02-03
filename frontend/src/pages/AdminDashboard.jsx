@@ -330,17 +330,43 @@ function BookingViewer() {
     const [filterDate, setFilterDate] = useState("ALL");
     const [filterTime, setFilterTime] = useState("ALL");
 
-    useEffect(() => { axios.get("/api/admin/bookings").then(res => setBookings(res.data)); }, []);
+    useEffect(() => {
+        axios.get("/api/admin/bookings").then(res => {
+            console.log("Bookings Data:", res.data); // Debugging
+            setBookings(res.data);
+        });
+    }, []);
+
+    const formatDate = (dateVal) => {
+        if (!dateVal) return "";
+        if (Array.isArray(dateVal)) {
+            // Handle [year, month, day] format
+            const [y, m, d] = dateVal;
+            return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
+        return dateVal;
+    };
 
     // Extract unique dates and times for filters
-    const uniqueDates = [...new Set(bookings.map(b => b.slot?.examDate).filter(Boolean))].sort();
+    const uniqueDates = [...new Set(bookings.map(b => {
+        const d = b.slot?.examDate || b.examQuota?.exam?.startingDate;
+        return formatDate(d);
+    }).filter(Boolean))].sort();
+
     const uniqueTimes = [...new Set(bookings.map(b => b.slot?.startTime).filter(Boolean))].sort();
 
     // Filter logic
     const filteredBookings = bookings.filter(b => {
-        const matchCategory = filterCategory === "ALL" || (b.slot?.category === filterCategory);
-        const matchDate = filterDate === "ALL" || (b.slot?.examDate === filterDate);
-        const matchTime = filterTime === "ALL" || (b.slot?.startTime === filterTime);
+        const matchCategory = filterCategory === "ALL" ||
+            (b.slot?.category === filterCategory) ||
+            (b.examQuota && b.examQuota.categoryType === (filterCategory === 'DAY' ? 1 : filterCategory === 'HOSTEL_MALE' ? 2 : 3));
+
+        const rawDate = b.slot?.examDate || b.examQuota?.exam?.startingDate;
+        const dateStr = formatDate(rawDate);
+        const matchDate = filterDate === "ALL" || (dateStr === filterDate);
+
+        const time = b.slot?.startTime || "09:00:00";
+        const matchTime = filterTime === "ALL" || (time === filterTime);
         return matchCategory && matchDate && matchTime;
     });
 
@@ -413,15 +439,22 @@ function BookingViewer() {
                                     </td>
                                     <td className="p-3 font-mono text-xs">{b.department?.deptCode}</td>
                                     <td className="p-3">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${b.slot?.category === 'DAY' ? 'bg-blue-100 text-blue-700' :
-                                            b.slot?.category === 'HOSTEL_MALE' ? 'bg-green-100 text-green-700' :
-                                                'bg-pink-100 text-pink-700'
-                                            }`}>
-                                            {b.slot?.category}
-                                        </span>
+                                        {(() => {
+                                            const category = b.slot?.category || (b.examQuota?.categoryType === 1 ? 'DAY' : b.examQuota?.categoryType === 2 ? 'HOSTEL_MALE' : 'HOSTEL_FEMALE');
+                                            return (
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${category === 'DAY' ? 'bg-blue-100 text-blue-700' :
+                                                    category === 'HOSTEL_MALE' ? 'bg-green-100 text-green-700' :
+                                                        'bg-pink-100 text-pink-700'
+                                                    }`}>
+                                                    {category}
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
-                                    <td className="p-3">{b.slot?.examDate}</td>
-                                    <td className="p-3">{b.slot?.startTime}</td>
+                                    <td className="p-3">
+                                        {formatDate(b.slot?.examDate || b.examQuota?.exam?.startingDate)}
+                                    </td>
+                                    <td className="p-3">{b.slot?.startTime || "09:00 - 17:00"}</td>
                                 </tr>
                             ))
                         ) : (
@@ -437,7 +470,7 @@ function BookingViewer() {
             <div className="text-xs text-gray-400 text-right mt-2">
                 Showing {filteredBookings.length} of {bookings.length} bookings
             </div>
-        </div>
+        </div >
     );
 }
 

@@ -34,6 +34,10 @@ public class Booking {
     @Column(name = "exam_quota_id")
     private Long examQuotaId;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "exam_quota_id", insertable = false, updatable = false)
+    private ExamQuota examQuota;
+
     @Column(name = "booked_at", nullable = false, updatable = false)
     private LocalDateTime bookedAt = LocalDateTime.now();
 }
