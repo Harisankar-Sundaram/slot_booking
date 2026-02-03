@@ -36,4 +36,11 @@ public class ExamQuota {
 
     @Column(name = "current_fill", nullable = false)
     private Integer currentFill = 0;
+
+    @Column(name = "is_closed")
+    private Boolean isClosed = false;
+
+    public Boolean getIsClosed() {
+        return isClosed != null ? isClosed : false;
+    }
 }

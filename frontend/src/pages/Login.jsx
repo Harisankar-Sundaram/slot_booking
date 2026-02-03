@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/toast";
 import { Loader2, Mail, User, Key, Eye, EyeOff, ShieldCheck } from "lucide-react";
 
 // Ensure axios knows where your Spring Boot backend is
@@ -23,6 +24,7 @@ export default function Login() {
 
     const { login } = useAuth();
     const navigate = useNavigate();
+    const toast = useToast();
 
     // Mapping Student Logic
     const handleStudentLogin = async (e) => {
@@ -32,15 +34,17 @@ export default function Login() {
             if (step === 1) {
                 // Mapping to: initiateStudentLogin(Dtos.LoginRequest request)
                 await axios.post("/api/auth/student/login", { rollNo, email });
+                toast.success("OTP sent to your email!");
                 setStep(2);
             } else {
                 // Mapping to: verifyStudentOtp(Dtos.OtpVerificationRequest request)
                 const res = await axios.post("/api/auth/student/verify", { email, otp });
+                toast.success("Login successful! Redirecting...");
                 login(res.data.token, "STUDENT");
                 navigate("/student");
             }
         } catch (err) {
-            alert(err.response?.data?.message || "Student Login failed");
+            toast.error(err.response?.data?.message || "Student Login failed");
         } finally {
             setLoading(false);
         }
@@ -53,10 +57,11 @@ export default function Login() {
         try {
             // Mapping to: adminLogin(Dtos.AdminLoginRequest request)
             const res = await axios.post("/api/auth/admin/login", { email, password });
+            toast.success("Admin login successful!");
             login(res.data.token, "ADMIN");
             navigate("/admin");
         } catch (err) {
-            alert(err.response?.data?.message || "Invalid Admin Credentials");
+            toast.error(err.response?.data?.message || "Invalid Admin Credentials");
         } finally {
             setLoading(false);
         }
@@ -104,13 +109,36 @@ export default function Login() {
                         <form onSubmit={handleStudentLogin} className="space-y-6">
                             {step === 1 ? (
                                 <div className="space-y-4">
-                                    <div className="relative">
-                                        <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                        <Input className="pl-10" placeholder="Roll Number" value={rollNo} onChange={e => setRollNo(e.target.value)} required />
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                                            Roll Number <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                            <Input
+                                                className="pl-10"
+                                                placeholder="Enter your roll number"
+                                                value={rollNo}
+                                                onChange={e => setRollNo(e.target.value)}
+                                                required
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="relative">
-                                        <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                        <Input className="pl-10" placeholder="College Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                                            College Email <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                            <Input
+                                                className="pl-10"
+                                                placeholder="Enter your college email"
+                                                type="email"
+                                                value={email}
+                                                onChange={e => setEmail(e.target.value)}
+                                                required
+                                            />
+                                        </div>
                                     </div>
                                     <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
                                         {loading ? <Loader2 className="animate-spin" /> : "Send OTP"}
@@ -118,12 +146,24 @@ export default function Login() {
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="text-sm text-center bg-blue-50 text-blue-700 p-3 rounded-lg border border-blue-100">
-                                        OTP sent to <strong>{email}</strong>
+                                    <div className="text-sm text-center bg-green-50 text-green-700 p-4 rounded-lg border border-green-100">
+                                        ✓ OTP sent to <strong>{email}</strong>
                                     </div>
-                                    <div className="relative">
-                                        <ShieldCheck className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                        <Input className="pl-10 text-center tracking-widest" placeholder="6-Digit OTP" value={otp} onChange={e => setOtp(e.target.value)} maxLength={6} required />
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                                            OTP Code <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <ShieldCheck className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                            <Input
+                                                className="pl-10 text-center tracking-widest text-lg font-bold"
+                                                placeholder="• • • • • •"
+                                                value={otp}
+                                                onChange={e => setOtp(e.target.value)}
+                                                maxLength={6}
+                                                required
+                                            />
+                                        </div>
                                     </div>
                                     <div className="flex gap-2">
                                         <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>Back</Button>
@@ -137,23 +177,51 @@ export default function Login() {
                     ) : (
                         <form onSubmit={handleAdminLogin} className="space-y-6">
                             <div className="space-y-4">
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                    <Input className="pl-10" placeholder="Admin Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                                        Admin Email <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                        <Input
+                                            className="pl-10"
+                                            placeholder="Enter admin email"
+                                            type="email"
+                                            value={email}
+                                            onChange={e => setEmail(e.target.value)}
+                                            required
+                                        />
+                                    </div>
                                 </div>
-                                <div className="relative">
-                                    <Key className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                                    <Input className="pl-10 pr-10" placeholder="Password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400">
-                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </button>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                                        Password <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <Key className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                        <Input
+                                            className="pl-10 pr-10"
+                                            placeholder="Enter password"
+                                            type={showPassword ? "text" : "password"}
+                                            value={password}
+                                            onChange={e => setPassword(e.target.value)}
+                                            required
+                                        />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                        </button>
+                                    </div>
                                 </div>
-                                <Button type="submit" className="w-full bg-black" disabled={loading}>
+                                <Button type="submit" className="w-full bg-black hover:bg-gray-800" disabled={loading}>
                                     {loading ? <Loader2 className="animate-spin" /> : "Admin Login"}
                                 </Button>
                             </div>
                         </form>
                     )}
+
+                    <p className="text-center text-xs text-gray-400 mt-6">
+                        <span className="text-red-500">*</span> indicates required field
+                    </p>
                 </div>
             </div>
         </div>

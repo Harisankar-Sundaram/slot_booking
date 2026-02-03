@@ -264,4 +264,41 @@ public class AdminController {
             return ResponseEntity.badRequest().body("Delete failed: " + e.getMessage());
         }
     }
+
+    @PatchMapping("/quotas/{quotaId}")
+    public ResponseEntity<?> updateQuota(@PathVariable Long quotaId,
+            @RequestBody java.util.Map<String, Object> updates) {
+        try {
+            var quota = quotaRepository.findById(quotaId).orElseThrow(() -> new RuntimeException("Quota not found"));
+            if (updates.containsKey("maxCount")) {
+                quota.setMaxCount(Integer.parseInt(updates.get("maxCount").toString()));
+            }
+            quotaRepository.save(quota);
+            return ResponseEntity.ok(quota);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Update failed: " + e.getMessage());
+        }
+    }
+
+    @PatchMapping("/quotas/{quotaId}/toggle")
+    public ResponseEntity<?> toggleQuota(@PathVariable Long quotaId) {
+        try {
+            var quota = quotaRepository.findById(quotaId).orElseThrow(() -> new RuntimeException("Quota not found"));
+            quota.setIsClosed(!quota.getIsClosed());
+            quotaRepository.save(quota);
+            return ResponseEntity.ok(quota);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Toggle failed: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/quotas/{quotaId}")
+    public ResponseEntity<?> deleteQuota(@PathVariable Long quotaId) {
+        try {
+            quotaRepository.deleteById(quotaId);
+            return ResponseEntity.ok("Quota deleted");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Delete failed: " + e.getMessage());
+        }
+    }
 }

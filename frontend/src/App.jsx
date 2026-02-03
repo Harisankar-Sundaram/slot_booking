@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider } from "./components/ui/toast";
 import Login from "./pages/Login";
 import StudentDashboard from "./pages/StudentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -14,33 +15,35 @@ const ProtectedRoute = ({ children, role }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+    <ToastProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
 
-          <Route path="/student" element={
-            <ProtectedRoute role="STUDENT">
-              <StudentDashboard />
-            </ProtectedRoute>
-          } />
+            <Route path="/student" element={
+              <ProtectedRoute role="STUDENT">
+                <StudentDashboard />
+              </ProtectedRoute>
+            } />
 
-          <Route path="/student/confirmation" element={
-            <ProtectedRoute role="STUDENT">
-              <Confirmation />
-            </ProtectedRoute>
-          } />
+            <Route path="/student/confirmation" element={
+              <ProtectedRoute role="STUDENT">
+                <Confirmation />
+              </ProtectedRoute>
+            } />
 
-          <Route path="/admin" element={
-            <ProtectedRoute role="ADMIN">
-              <AdminDashboard />
-            </ProtectedRoute>
-          } />
+            <Route path="/admin" element={
+              <ProtectedRoute role="ADMIN">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
 
-          <Route path="/" element={<Navigate to="/login" />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+            <Route path="/" element={<Navigate to="/login" />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

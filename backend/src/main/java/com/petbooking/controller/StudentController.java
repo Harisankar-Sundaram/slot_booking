@@ -27,6 +27,9 @@ public class StudentController {
     @Autowired
     private BookingService bookingService;
 
+    @Autowired
+    private com.petbooking.repository.ExamQuotaRepository examQuotaRepository;
+
     @GetMapping("/slots")
     public ResponseEntity<?> getAvailableSlots(Authentication auth) {
         try {
@@ -39,13 +42,56 @@ public class StudentController {
             Student student = studentRepository.findById(rollNo)
                     .orElseThrow(() -> new RuntimeException("Student not found with RollNo: " + rollNo));
 
-            System.out.println("Student Category: " + student.getCategory());
+            // Map student category to categoryType: 1=Day, 2=HostelM, 3=HostelF
+            Integer categoryType;
+            switch (student.getCategory()) {
+                case DAY:
+                    categoryType = 1;
+                    break;
+                case HOSTEL_MALE:
+                    categoryType = 2;
+                    break;
+                case HOSTEL_FEMALE:
+                    categoryType = 3;
+                    break;
+                default:
+                    categoryType = 1;
+            }
 
-            // Filter by category
-            List<Slot> slots = slotRepository.findByCategoryAndBookingOpenTrue(student.getCategory());
-            System.out.println("Found " + slots.size() + " slots");
+            String deptCode = student.getDepartment().getDeptCode();
+            System.out.println("Student Dept: " + deptCode + ", CategoryType: " + categoryType);
 
-            return ResponseEntity.ok(slots);
+            // Get available exam quotas for student's department and category
+            var quotas = examQuotaRepository.findAvailableForStudent(deptCode, categoryType);
+            System.out.println("Found " + quotas.size() + " available quotas");
+
+            // Transform quotas into response format the frontend expects
+            var response = quotas.stream().map(q -> {
+                var map = new java.util.HashMap<String, Object>();
+                map.put("slotId", q.getId());
+                map.put("examDate", q.getExam().getStartingDate().toString());
+                map.put("examName", q.getExam().getExamName());
+                map.put("startTime", "09:00");
+                map.put("endTime", "17:00");
+                map.put("maxCount", q.getMaxCount());
+                map.put("bookedCount", q.getCurrentFill());
+                map.put("available", q.getMaxCount() - q.getCurrentFill());
+                map.put("department", deptCode);
+                map.put("category",
+                        categoryType == 1 ? "Day Scholar" : categoryType == 2 ? "Hostel Boys" : "Hostel Girls");
+
+                // Add quotas array for frontend compatibility
+                var quotaInfo = new java.util.HashMap<String, Object>();
+                quotaInfo.put("quotaId", q.getId());
+                quotaInfo.put("quotaCapacity", q.getMaxCount());
+                quotaInfo.put("bookedCount", q.getCurrentFill());
+                quotaInfo.put("department", java.util.Map.of("deptCode", deptCode));
+                map.put("quotas", java.util.List.of(quotaInfo));
+
+                return map;
+            }).toList();
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body("Error fetching slots: " + e.getMessage());
@@ -54,9 +100,13 @@ public class StudentController {
 
     @PostMapping("/book")
     public ResponseEntity<?> bookSlot(@RequestBody Dtos.BookingRequest request, Authentication auth) {
-        String rollNo = auth.getName();
-        Booking booking = bookingService.bookSlot(rollNo, request.getSlotId());
-        return ResponseEntity.ok(booking);
+        try {
+            String rollNo = auth.getName();
+            var result = bookingService.bookExamQuota(rollNo, request.getSlotId());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
+        }
     }
 
     // ========== NEW: Exam Slot Endpoints ==========

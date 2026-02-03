@@ -3,7 +3,7 @@ import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, LayoutDashboard, Database, Users, Calendar, LogOut, GraduationCap, Menu, X, FileText, Pencil, Trash2, Lock, Unlock } from "lucide-react";
+import { Loader2, LayoutDashboard, Database, Users, Calendar, LogOut, GraduationCap, Menu, X, FileText, Pencil, Trash2, Lock, Unlock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function AdminDashboard() {
@@ -1065,49 +1065,102 @@ function ExamManager() {
                                 {/* Expanded Department-wise Slots */}
                                 {expandedExamId === exam.examId && (
                                     <div className="border-t border-gray-100 bg-gray-50 p-6">
-                                        <h5 className="font-bold text-gray-700 mb-4">Department-wise Slots</h5>
+                                        <h5 className="font-bold text-xl text-gray-800 mb-6">Department-wise Slots</h5>
                                         {examQuotas.length === 0 ? (
-                                            <p className="text-gray-400 text-sm">No quotas found for this exam.</p>
+                                            <p className="text-gray-500 text-base">No quotas found for this exam.</p>
                                         ) : (
                                             <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
-                                                    <thead className="bg-white text-gray-500 font-bold uppercase text-xs">
+                                                <table className="w-full text-base">
+                                                    <thead className="bg-white text-gray-600 font-bold uppercase text-sm">
                                                         <tr>
-                                                            <th className="p-3 text-left">Department</th>
-                                                            <th className="p-3 text-center">Category</th>
-                                                            <th className="p-3 text-center">Max Slots</th>
-                                                            <th className="p-3 text-center">Booked</th>
-                                                            <th className="p-3 text-center">Status</th>
-                                                            <th className="p-3 text-right">Actions</th>
+                                                            <th className="p-4 text-left">Department</th>
+                                                            <th className="p-4 text-center">Category</th>
+                                                            <th className="p-4 text-center">Max Slots</th>
+                                                            <th className="p-4 text-center">Booked</th>
+                                                            <th className="p-4 text-center">Available</th>
+                                                            <th className="p-4 text-center">Status</th>
+                                                            <th className="p-4 text-center">Actions</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-gray-100">
                                                         {examQuotas.map(q => (
                                                             <tr key={q.id} className="hover:bg-white transition-colors">
-                                                                <td className="p-3 font-bold text-gray-900">{q.department?.deptCode || 'N/A'}</td>
-                                                                <td className="p-3 text-center">
-                                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${q.categoryType === 1 ? 'bg-blue-100 text-blue-700' :
-                                                                            q.categoryType === 2 ? 'bg-green-100 text-green-700' :
-                                                                                'bg-pink-100 text-pink-700'
+                                                                <td className="p-4 font-bold text-gray-900 text-lg">{q.department?.deptCode || 'N/A'}</td>
+                                                                <td className="p-4 text-center">
+                                                                    <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${q.categoryType === 1 ? 'bg-blue-100 text-blue-700' :
+                                                                        q.categoryType === 2 ? 'bg-green-100 text-green-700' :
+                                                                            'bg-pink-100 text-pink-700'
                                                                         }`}>
                                                                         {q.categoryType === 1 ? 'Day Scholar' : q.categoryType === 2 ? 'Hostel Boys' : 'Hostel Girls'}
                                                                     </span>
                                                                 </td>
-                                                                <td className="p-3 text-center font-bold">{q.maxCount}</td>
-                                                                <td className="p-3 text-center">{q.currentFill || 0}</td>
-                                                                <td className="p-3 text-center">
-                                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${q.currentFill >= q.maxCount ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                                                <td className="p-4 text-center font-bold text-lg">{q.maxCount}</td>
+                                                                <td className="p-4 text-center text-lg">{q.currentFill || 0}</td>
+                                                                <td className="p-4 text-center text-lg font-bold text-green-600">{q.maxCount - (q.currentFill || 0)}</td>
+                                                                <td className="p-4 text-center">
+                                                                    <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${q.isClosed ? 'bg-gray-200 text-gray-600' :
+                                                                        q.currentFill >= q.maxCount ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                                                                         }`}>
-                                                                        {q.currentFill >= q.maxCount ? 'FULL' : 'OPEN'}
+                                                                        {q.isClosed ? 'CLOSED' : q.currentFill >= q.maxCount ? 'FULL' : 'OPEN'}
                                                                     </span>
                                                                 </td>
-                                                                <td className="p-3 text-right">
-                                                                    <div className="flex justify-end gap-1">
-                                                                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-blue-600 hover:bg-blue-50">
-                                                                            Edit
+                                                                <td className="p-4 text-center">
+                                                                    <div className="flex justify-center gap-2">
+                                                                        <Button
+                                                                            size="icon"
+                                                                            variant="ghost"
+                                                                            className="h-9 w-9 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                                                                            title="Edit Quota"
+                                                                            onClick={async () => {
+                                                                                const newMax = prompt(`Edit max slots for ${q.department?.deptCode} - ${q.categoryType === 1 ? 'Day Scholar' : q.categoryType === 2 ? 'Hostel Boys' : 'Hostel Girls'}:`, q.maxCount);
+                                                                                if (newMax && !isNaN(parseInt(newMax))) {
+                                                                                    try {
+                                                                                        await axios.patch(`/api/admin/quotas/${q.id}`, { maxCount: parseInt(newMax) });
+                                                                                        const res = await axios.get(`/api/admin/exams/${exam.examId}/quotas`);
+                                                                                        setExamQuotas(res.data);
+                                                                                    } catch (e) {
+                                                                                        alert("Update failed: " + e.message);
+                                                                                    }
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Pencil className="h-5 w-5" />
                                                                         </Button>
-                                                                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-orange-600 hover:bg-orange-50">
-                                                                            Close
+                                                                        <Button
+                                                                            size="icon"
+                                                                            variant="ghost"
+                                                                            className={`h-9 w-9 ${q.isClosed ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'}`}
+                                                                            title={q.isClosed ? "Open Booking" : "Close Booking"}
+                                                                            onClick={async () => {
+                                                                                try {
+                                                                                    await axios.patch(`/api/admin/quotas/${q.id}/toggle`);
+                                                                                    const res = await axios.get(`/api/admin/exams/${exam.examId}/quotas`);
+                                                                                    setExamQuotas(res.data);
+                                                                                } catch (e) {
+                                                                                    alert("Toggle failed: " + e.message);
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            {q.isClosed ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+                                                                        </Button>
+                                                                        <Button
+                                                                            size="icon"
+                                                                            variant="ghost"
+                                                                            className="h-9 w-9 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                                            title="Delete Quota"
+                                                                            onClick={async () => {
+                                                                                if (confirm(`Delete quota for ${q.department?.deptCode} - ${q.categoryType === 1 ? 'Day Scholar' : q.categoryType === 2 ? 'Hostel Boys' : 'Hostel Girls'}?`)) {
+                                                                                    try {
+                                                                                        await axios.delete(`/api/admin/quotas/${q.id}`);
+                                                                                        const res = await axios.get(`/api/admin/exams/${exam.examId}/quotas`);
+                                                                                        setExamQuotas(res.data);
+                                                                                    } catch (e) {
+                                                                                        alert("Delete failed: " + e.message);
+                                                                                    }
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Trash2 className="h-5 w-5" />
                                                                         </Button>
                                                                     </div>
                                                                 </td>

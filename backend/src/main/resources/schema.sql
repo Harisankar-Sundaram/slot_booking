@@ -143,7 +143,8 @@ CREATE TABLE IF NOT EXISTS exam_quotas (
     dept_id BIGINT NOT NULL REFERENCES departments(dept_id),
     category_type INT NOT NULL, -- 1=Day Scholar, 2=Hostel Boys, 3=Hostel Girls
     max_count INT NOT NULL,
-    current_fill INT NOT NULL DEFAULT 0
+    current_fill INT NOT NULL DEFAULT 0,
+    is_closed BOOLEAN NOT NULL DEFAULT false
 );
 
 -- Indexes for new tables

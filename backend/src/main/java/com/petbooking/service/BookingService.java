@@ -19,6 +19,8 @@ public class BookingService {
     private DeptQuotaRepository deptQuotaRepository;
     @Autowired
     private ExamSlotRepository examSlotRepository;
+    @Autowired
+    private com.petbooking.repository.ExamQuotaRepository examQuotaRepository;
 
     // ========== OLD METHOD (Legacy) ==========
     @Transactional
@@ -112,5 +114,85 @@ public class BookingService {
         booking.setDepartment(student.getDepartment());
 
         return bookingRepository.save(booking);
+    }
+
+    // ========== NEW METHOD: Book via Exam Quota ==========
+    @Transactional
+    public java.util.Map<String, Object> bookExamQuota(String rollNo, Long quotaId) {
+        // 1. Validate Student
+        Student student = studentRepository.findById(rollNo)
+                .orElseThrow(() -> new RuntimeException("Student not found"));
+
+        // 2. Check if student already has a booking for any exam
+        if (bookingRepository.existsByStudentRollNo(rollNo)) {
+            throw new RuntimeException("You have already booked a slot");
+        }
+
+        // 3. Get the quota
+        com.petbooking.entity.ExamQuota quota = examQuotaRepository.findById(quotaId)
+                .orElseThrow(() -> new RuntimeException("Quota not found"));
+
+        // 4. Check if quota is closed
+        if (quota.getIsClosed() != null && quota.getIsClosed()) {
+            throw new RuntimeException("Booking is closed for this slot");
+        }
+
+        // 5. Check if quota is full
+        if (quota.getCurrentFill() >= quota.getMaxCount()) {
+            throw new RuntimeException("No slots available - quota is full");
+        }
+
+        // 6. Map student category to categoryType
+        Integer studentCategoryType;
+        switch (student.getCategory()) {
+            case DAY:
+                studentCategoryType = 1;
+                break;
+            case HOSTEL_MALE:
+                studentCategoryType = 2;
+                break;
+            case HOSTEL_FEMALE:
+                studentCategoryType = 3;
+                break;
+            default:
+                studentCategoryType = 1;
+        }
+
+        // 7. Validate quota matches student profile
+        if (!quota.getCategoryType().equals(studentCategoryType)) {
+            throw new RuntimeException("This slot is not for your category");
+        }
+        if (!quota.getDepartment().getDeptCode().equalsIgnoreCase(student.getDepartment().getDeptCode())) {
+            throw new RuntimeException("This slot is not for your department");
+        }
+
+        // 8. Atomic increment (race-condition safe)
+        int updated = examQuotaRepository.incrementCurrentFill(
+                quota.getExam().getExamId(),
+                quota.getDepartment().getDeptId(),
+                quota.getCategoryType());
+        if (updated == 0) {
+            throw new RuntimeException("Slot is full. Please try another.");
+        }
+
+        // 9. Create Booking record
+        Booking booking = new Booking();
+        booking.setStudent(student);
+        booking.setDepartment(student.getDepartment());
+        booking.setExamQuotaId(quotaId); // Store reference to exam quota
+        Booking saved = bookingRepository.save(booking);
+
+        // 10. Return booking confirmation data
+        var result = new java.util.HashMap<String, Object>();
+        result.put("bookingId", saved.getBookingId());
+        result.put("rollNo", rollNo);
+        result.put("examName", quota.getExam().getExamName());
+        result.put("examDate", quota.getExam().getStartingDate().toString());
+        result.put("department", student.getDepartment().getDeptCode());
+        result.put("category",
+                studentCategoryType == 1 ? "Day Scholar" : studentCategoryType == 2 ? "Hostel Boys" : "Hostel Girls");
+        result.put("message", "Booking successful!");
+
+        return result;
     }
 }

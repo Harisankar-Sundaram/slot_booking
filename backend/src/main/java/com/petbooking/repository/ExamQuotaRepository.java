@@ -35,4 +35,14 @@ public interface ExamQuotaRepository extends JpaRepository<ExamQuota, Long> {
 
         // Delete all quotas for an exam
         void deleteByExamExamId(Long examId);
+
+        // Find open quotas by department and category type for student view
+        @Query("SELECT q FROM ExamQuota q JOIN FETCH q.exam e JOIN FETCH q.department d " +
+                        "WHERE d.deptCode = :deptCode AND q.categoryType = :categoryType " +
+                        "AND (q.isClosed IS NULL OR q.isClosed = false) " +
+                        "AND q.currentFill < q.maxCount " +
+                        "AND e.endingDate >= CURRENT_DATE " +
+                        "ORDER BY e.startingDate")
+        List<ExamQuota> findAvailableForStudent(@Param("deptCode") String deptCode,
+                        @Param("categoryType") Integer categoryType);
 }
