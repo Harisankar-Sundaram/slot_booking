@@ -30,12 +30,12 @@ export default function AdminDashboard() {
     ];
 
     return (
-        <div className="flex min-h-screen bg-gray-50 font-sans">
+        <div className="flex min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 font-sans">
             {/* Sidebar (Desktop) */}
-            <aside className="hidden md:flex w-64 bg-blue-50 border-r-2 border-r-black border-gray-200 flex-col fixed h-full z-10">
+            <aside className="hidden md:flex w-64 bg-gradient-to-b from-purple-50 to-indigo-50 border-r-2 border-r-purple-200 flex-col fixed h-full z-10">
                 <div className="p-6 border-b border-gray-100 flex items-center gap-3">
-                    <div className="h-8 w-8 bg-black rounded-lg flex items-center justify-center text-white font-bold">A</div>
-                    <span className="font-bold text-xl tracking-tight">Admin <span className="text-orange-500">Panel</span></span>
+                    <div className="h-8 w-8 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-purple-200">A</div>
+                    <span className="font-bold text-xl tracking-tight">Admin <span className="text-purple-600">Panel</span></span>
                 </div>
 
                 <nav className="flex-1 p-4 space-y-2">
@@ -44,8 +44,8 @@ export default function AdminDashboard() {
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === item.id
-                                ? "bg-black text-white shadow-lg shadow-gray-200"
-                                : "text-gray-600 hover:bg-orange-100"
+                                ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-200"
+                                : "text-gray-600 hover:bg-purple-100"
                                 }`}
                         >
                             <item.icon className="h-5 w-5" />
@@ -77,7 +77,7 @@ export default function AdminDashboard() {
                         <button
                             key={item.id}
                             onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }}
-                            className={`w-full flex items-center gap-3 px-4 py-4 rounded-xl text-lg font-bold ${activeTab === item.id ? "bg-black text-white" : "text-gray-600"
+                            className={`w-full flex items-center gap-3 px-4 py-4 rounded-xl text-lg font-bold ${activeTab === item.id ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white" : "text-gray-600"
                                 }`}
                         >
                             <item.icon className="h-6 w-6" />
