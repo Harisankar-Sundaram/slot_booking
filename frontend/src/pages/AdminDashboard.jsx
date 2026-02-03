@@ -10,6 +10,17 @@ export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState("exams");
     const { logout } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+    const handleLogoutClick = () => {
+        setShowLogoutConfirm(true);
+        setIsMobileMenuOpen(false); // Close mobile menu if open
+    };
+
+    const confirmLogout = () => {
+        logout();
+        setShowLogoutConfirm(false);
+    };
 
     const menuItems = [
         { id: "exams", label: "Exam Setup", icon: FileText },
@@ -44,7 +55,7 @@ export default function AdminDashboard() {
                 </nav>
 
                 <div className="p-4 border-t border-gray-100">
-                    <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-600 hover:bg-red-100 transition-colors">
+                    <button onClick={handleLogoutClick} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-600 hover:bg-red-100 transition-colors">
                         <LogOut className="h-5 w-5" />
                         Logout
                     </button>
@@ -73,9 +84,32 @@ export default function AdminDashboard() {
                             {item.label}
                         </button>
                     ))}
-                    <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-4 text-red-600 font-bold">
+                    <button onClick={handleLogoutClick} className="w-full flex items-center gap-3 px-4 py-4 text-red-600 font-bold">
                         <LogOut className="h-6 w-6" /> Logout
                     </button>
+                </div>
+            )}
+
+            {/* Logout Confirmation Modal */}
+            {showLogoutConfirm && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in-95">
+                        <div className="text-center mb-6">
+                            <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                                <LogOut className="h-6 w-6 text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900">Confirm Logout</h3>
+                            <p className="text-gray-500 mt-2">Are you sure you want to end your session?</p>
+                        </div>
+                        <div className="flex gap-3">
+                            <Button variant="outline" className="flex-1" onClick={() => setShowLogoutConfirm(false)}>
+                                Cancel
+                            </Button>
+                            <Button variant="destructive" className="flex-1" onClick={confirmLogout}>
+                                Logout
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -628,6 +662,7 @@ function StudentDataManager() {
                             <th className="p-3 cursor-pointer hover:bg-gray-200 transition-colors select-none" onClick={() => handleSort("gender")}>
                                 Gender<SortIcon column="gender" />
                             </th>
+                            <th className="p-3 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -639,6 +674,11 @@ function StudentDataManager() {
                                 <td className="p-3">{s.deptCode}</td>
                                 <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${s.studentType === 'HOSTEL' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>{s.studentType}</span></td>
                                 <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-bold ${s.gender === 'MALE' ? 'bg-cyan-100 text-cyan-700' : 'bg-pink-100 text-pink-700'}`}>{s.gender}</span></td>
+                                <td className="p-3 text-center">
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => startEdit(s)}>
+                                        <Pencil className="h-4 w-4 text-gray-500 hover:text-blue-600" />
+                                    </Button>
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -650,13 +690,18 @@ function StudentDataManager() {
 
 function ExamManager() {
     const [exams, setExams] = useState([]);
+    const [strengths, setStrengths] = useState([]);
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [showQuotas, setShowQuotas] = useState(false);
+    const [expandedExamId, setExpandedExamId] = useState(null);
+    const [examQuotas, setExamQuotas] = useState([]);
     const [formData, setFormData] = useState({
         examName: "",
         startDate: "",
         endDate: "",
-        totalDays: 1,
+        totalDays: 5,
+        examPurpose: "",
         perDeptCapacity: 100,
         deptCategories: []
     });
@@ -665,43 +710,103 @@ function ExamManager() {
 
     const loadData = async () => {
         setLoading(true);
+        // Load separately to avoid one failure blocking everything
         try {
-            const [examsRes, deptRes] = await Promise.all([
-                axios.get("/api/admin/exams"),
-                axios.get("/api/admin/departments")
-            ]);
-            setExams(examsRes.data);
-            setDepartments(deptRes.data);
-            const cats = deptRes.data.map(d => ({
-                deptId: d.deptId,
-                deptCode: d.deptCode,
-                dayScholarCount: 0,
-                hostellerBoysCount: 0,
-                hostellerGirlsCount: 0
-            }));
-            setFormData(prev => ({ ...prev, deptCategories: cats }));
-        } catch (e) {
-            console.error("Failed to load data", e);
-        } finally {
-            setLoading(false);
-        }
+            const strengthRes = await axios.get("/api/admin/student-master/strength");
+            setStrengths(strengthRes.data || []);
+        } catch (e) { console.error("Failed to load strength", e); }
+
+        try {
+            const deptRes = await axios.get("/api/admin/departments");
+            setDepartments(deptRes.data || []);
+        } catch (e) { console.error("Failed to load departments", e); }
+
+        try {
+            const examsRes = await axios.get("/api/admin/exams");
+            setExams(examsRes.data || []);
+        } catch (e) { console.error("Failed to load exams", e); }
+
+        setLoading(false);
     };
 
-    const updateDeptCategory = (deptId, field, value) => {
+
+    const handleCalculateQuotas = async () => {
+        if (!formData.examName || !formData.startDate || !formData.endDate || !formData.totalDays) {
+            alert("Please fill all required fields before calculating quotas.");
+            return;
+        }
+
+        if (strengths.length === 0) {
+            alert("No student data found. Please upload student master data first.");
+            return;
+        }
+
+        // Sync departments from student_master_upload first
+        let freshDepartments = departments;
+        try {
+            await axios.post("/api/admin/sync-departments");
+            // Reload departments after sync
+            const deptRes = await axios.get("/api/admin/departments");
+            freshDepartments = deptRes.data;
+            setDepartments(freshDepartments);
+        } catch (e) {
+            console.error("Sync departments failed:", e);
+        }
+
+        console.log("Fresh Departments:", freshDepartments);
+        console.log("Strengths loaded:", strengths);
+
+        // Calculate quotas ONLY for departments that have students in student_master_upload
+        const days = Math.max(1, parseInt(formData.totalDays));
+
+        const cats = strengths.map(s => {
+            // Find deptId from freshDepartments (not stale state)
+            const dept = freshDepartments.find(d => d.deptCode && s.deptCode && d.deptCode.trim().toUpperCase() === s.deptCode.trim().toUpperCase());
+            const deptId = dept ? dept.deptId : null;
+
+            const dayScholar = s.dayCount || 0;
+            const hostelBoys = s.hostelMaleCount || 0;
+            const hostelGirls = s.hostelFemaleCount || 0;
+
+            console.log(`Dept ${s.deptCode}: deptId=${deptId}, day=${dayScholar}, hostelM=${hostelBoys}, hostelF=${hostelGirls}`);
+
+            return {
+                deptId: deptId,
+                deptCode: s.deptCode.trim(),
+                dayScholarCount: dayScholar >= days ? Math.floor(dayScholar / days) : dayScholar,
+                hostellerBoysCount: hostelBoys >= days ? Math.floor(hostelBoys / days) : hostelBoys,
+                hostellerGirlsCount: hostelGirls >= days ? Math.floor(hostelGirls / days) : hostelGirls
+            };
+        });
+
+        // Check for missing departments
+        const missingDepts = cats.filter(c => c.deptId === null).map(c => c.deptCode);
+        if (missingDepts.length > 0) {
+            alert(`Warning: These departments are not in the departments table and will be skipped: ${missingDepts.join(', ')}\n\nPlease add them to the departments table first.`);
+        }
+
+        // Filter to only valid departments
+        const validCats = cats.filter(c => c.deptId !== null);
+        if (validCats.length === 0) {
+            alert("No valid departments found. Add department codes to departments table first.");
+            return;
+        }
+
+        setFormData(prev => ({ ...prev, deptCategories: validCats }));
+        setShowQuotas(true);
+    };
+
+    const updateDeptCategory = (deptCode, field, value) => {
         setFormData(prev => ({
             ...prev,
             deptCategories: prev.deptCategories.map(d =>
-                d.deptId === deptId ? { ...d, [field]: parseInt(value) || 0 } : d
+                d.deptCode === deptCode ? { ...d, [field]: parseInt(value) || 0 } : d
             )
         }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.examName || !formData.startDate || !formData.endDate) {
-            alert("Please fill all required fields");
-            return;
-        }
         setLoading(true);
         try {
             const payload = {
@@ -709,6 +814,7 @@ function ExamManager() {
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 totalDays: formData.totalDays,
+                examPurpose: formData.examPurpose,
                 perDeptCapacity: formData.perDeptCapacity,
                 deptCategories: formData.deptCategories.map(d => ({
                     deptId: d.deptId,
@@ -717,16 +823,19 @@ function ExamManager() {
                     hostellerGirlsCount: d.hostellerGirlsCount
                 }))
             };
+
             const res = await axios.post("/api/admin/exam/initialize", payload);
-            alert(`Exam created! ID: ${res.data.examId}, Slots: ${res.data.totalSlotsGenerated}, Quotas: ${res.data.quotasCreated}`);
+            alert(`Exam created! ID: ${res.data.examId}, Slots: ${res.data.totalSlotsGenerated}`);
             loadData();
+            setShowQuotas(false);
             setFormData(prev => ({
                 ...prev,
                 examName: "",
                 startDate: "",
                 endDate: "",
-                totalDays: 1,
-                deptCategories: prev.deptCategories.map(d => ({ ...d, dayScholarCount: 0, hostellerBoysCount: 0, hostellerGirlsCount: 0 }))
+                totalDays: 5,
+                examPurpose: "",
+                deptCategories: []
             }));
         } catch (err) {
             alert("Failed: " + (err.response?.data || err.message));
@@ -735,89 +844,281 @@ function ExamManager() {
         }
     };
 
-    const totalSlots = formData.deptCategories.reduce((sum, d) =>
-        sum + d.dayScholarCount + d.hostellerBoysCount + d.hostellerGirlsCount, 0);
+    // Helper to insure we have deptIds
+    // I will fetch departments in loadData as well.
 
     return (
         <div className="space-y-8">
-            <div className="p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100">
-                <h3 className="text-xl font-bold mb-6 text-gray-800">🎓 Initialize New Exam</h3>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase">Exam Name *</label>
-                            <Input placeholder="e.g. Mid-Term 2026" value={formData.examName} onChange={e => setFormData({ ...formData, examName: e.target.value })} required />
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-8">
+                <div className="mb-8">
+                    <h3 className="text-2xl font-black text-gray-900 tracking-tight">Create Exam Slots</h3>
+                    <p className="text-gray-500 font-medium">Configure exam details and calculate department quotas</p>
+                </div>
+
+                <div className="space-y-8">
+                    {/* Exam Details Section */}
+                    <div className="p-6 border rounded-2xl bg-white space-y-6 shadow-sm">
+                        <h4 className="text-lg font-bold text-gray-900 border-b pb-4">Exam Details</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Exam Name *</label>
+                                <Input
+                                    placeholder="e.g., Semester 1 Exam"
+                                    className="h-11 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                    value={formData.examName}
+                                    onChange={e => setFormData({ ...formData, examName: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Days *</label>
+                                <Input
+                                    type="number"
+                                    className="h-11 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                    value={formData.totalDays}
+                                    onChange={e => setFormData({ ...formData, totalDays: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Starting Date *</label>
+                                <Input
+                                    type="date"
+                                    className="h-11 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                    value={formData.startDate}
+                                    onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ending Date *</label>
+                                <Input
+                                    type="date"
+                                    className="h-11 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                    value={formData.endDate}
+                                    onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                                />
+                            </div>
+                            <div className="col-span-1 md:col-span-2 space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Exam Purpose</label>
+                                <textarea
+                                    className="flex min-h-[100px] w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-y focus:bg-white transition-colors"
+                                    placeholder="e.g., First semester evaluation"
+                                    value={formData.examPurpose}
+                                    onChange={e => setFormData({ ...formData, examPurpose: e.target.value })}
+                                />
+                            </div>
                         </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase">Start Date *</label>
-                            <Input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} required />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase">End Date *</label>
-                            <Input type="date" value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} required />
+                        <div>
+                            <Button
+                                onClick={handleCalculateQuotas}
+                                className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-6 rounded-lg shadow-lg shadow-gray-200"
+                            >
+                                Calculate Quotas
+                            </Button>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase">Total Exam Days</label>
-                            <Input type="number" value={formData.totalDays} onChange={e => setFormData({ ...formData, totalDays: parseInt(e.target.value) || 1 })} min={1} />
-                            <p className="text-xs text-gray-400">Number of days slots will be distributed over</p>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase">Per Dept Capacity</label>
-                            <Input type="number" value={formData.perDeptCapacity} onChange={e => setFormData({ ...formData, perDeptCapacity: parseInt(e.target.value) || 100 })} min={1} />
-                            <p className="text-xs text-gray-400">Max students per department for this exam</p>
-                        </div>
-                    </div>
-                    <div className="pt-4 border-t">
-                        <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-bold text-gray-700">Department Category Quotas</h4>
-                            <span className="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-bold">Total Slots: {totalSlots}</span>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-100 text-gray-600 text-xs uppercase">
-                                    <tr><th className="p-3 text-left">Department</th><th className="p-3 text-center">Day Scholars</th><th className="p-3 text-center">Hostel Boys</th><th className="p-3 text-center">Hostel Girls</th><th className="p-3 text-center">Total</th></tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {formData.deptCategories.map(dept => (
-                                        <tr key={dept.deptId} className="hover:bg-gray-50">
-                                            <td className="p-3 font-bold">{dept.deptCode}</td>
-                                            <td className="p-3"><Input type="number" className="w-24 text-center mx-auto" value={dept.dayScholarCount} onChange={e => updateDeptCategory(dept.deptId, 'dayScholarCount', e.target.value)} min={0} /></td>
-                                            <td className="p-3"><Input type="number" className="w-24 text-center mx-auto" value={dept.hostellerBoysCount} onChange={e => updateDeptCategory(dept.deptId, 'hostellerBoysCount', e.target.value)} min={0} /></td>
-                                            <td className="p-3"><Input type="number" className="w-24 text-center mx-auto" value={dept.hostellerGirlsCount} onChange={e => updateDeptCategory(dept.deptId, 'hostellerGirlsCount', e.target.value)} min={0} /></td>
-                                            <td className="p-3 text-center font-bold text-indigo-600">{dept.dayScholarCount + dept.hostellerBoysCount + dept.hostellerGirlsCount}</td>
+
+                    {/* Quotas Section (Hidden until calculated) */}
+                    {showQuotas && (
+                        <div className="p-6 border rounded-2xl bg-white space-y-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+                            <div className="flex justify-between items-center border-b pb-4">
+                                <h4 className="text-lg font-bold text-gray-900">Department Quotas (Proposed)</h4>
+                                <span className="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">
+                                    Auto-calculated for {formData.totalDays} days
+                                </span>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                                        <tr>
+                                            <th className="p-3 text-left rounded-l-lg">Department</th>
+                                            <th className="p-3 text-center">Day Scholars</th>
+                                            <th className="p-3 text-center">Hostel Boys</th>
+                                            <th className="p-3 text-center rounded-r-lg">Hostel Girls</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {formData.deptCategories.map(dept => (
+                                            <tr key={dept.deptCode} className="hover:bg-gray-50 transition-colors">
+                                                <td className="p-3 font-bold text-gray-900">{dept.deptCode}</td>
+                                                <td className="p-3">
+                                                    <Input
+                                                        type="number"
+                                                        className="w-24 text-center mx-auto h-9 bg-white border-gray-200"
+                                                        value={dept.dayScholarCount}
+                                                        onChange={e => updateDeptCategory(dept.deptCode, 'dayScholarCount', e.target.value)}
+                                                        min={0}
+                                                    />
+                                                </td>
+                                                <td className="p-3">
+                                                    <Input
+                                                        type="number"
+                                                        className="w-24 text-center mx-auto h-9 bg-white border-gray-200"
+                                                        value={dept.hostellerBoysCount}
+                                                        onChange={e => updateDeptCategory(dept.deptCode, 'hostellerBoysCount', e.target.value)}
+                                                        min={0}
+                                                    />
+                                                </td>
+                                                <td className="p-3">
+                                                    <Input
+                                                        type="number"
+                                                        className="w-24 text-center mx-auto h-9 bg-white border-gray-200"
+                                                        value={dept.hostellerGirlsCount}
+                                                        onChange={e => updateDeptCategory(dept.deptCode, 'hostellerGirlsCount', e.target.value)}
+                                                        min={0}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={loading}
+                                className="w-full h-12 text-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-200"
+                            >
+                                {loading ? <Loader2 className="animate-spin mr-2" /> : "Confirm & Generate Slots"}
+                            </Button>
                         </div>
-                    </div>
-                    <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3">
-                        {loading ? <><Loader2 className="animate-spin mr-2 h-4 w-4" /> Initializing...</> : "🚀 Initialize Exam & Generate Slots"}
-                    </Button>
-                </form>
+                    )}
+                </div>
             </div>
-            <div>
-                <h3 className="text-lg font-bold mb-4">📋 Existing Exams</h3>
+
+            {/* List of existing exams */}
+            <div className="pt-8">
+                <h3 className="text-xl font-black text-gray-900 mb-6">Existing Exams</h3>
                 {exams.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">No exams created yet.</div>
+                    <div className="text-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">No exams created yet.</div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
                         {exams.map(exam => (
-                            <div key={exam.examId} className="flex justify-between items-center p-4 border rounded-xl hover:shadow-md transition-shadow">
-                                <div>
-                                    <h4 className="font-bold text-lg">{exam.name}</h4>
-                                    <p className="text-sm text-gray-500">{exam.startDate} → {exam.endDate} • {exam.totalDays} days</p>
-                                    <p className="text-xs text-gray-400 mt-1">ID: {exam.examId} • Capacity: {exam.perDeptCapacity}/dept</p>
+                            <div key={exam.examId} className="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden">
+                                <div
+                                    className="flex justify-between items-center p-6 cursor-pointer"
+                                    onClick={async () => {
+                                        if (expandedExamId === exam.examId) {
+                                            setExpandedExamId(null);
+                                            setExamQuotas([]);
+                                        } else {
+                                            setExpandedExamId(exam.examId);
+                                            try {
+                                                const res = await axios.get(`/api/admin/exams/${exam.examId}/quotas`);
+                                                setExamQuotas(res.data);
+                                            } catch (e) {
+                                                console.error("Failed to load quotas:", e);
+                                            }
+                                        }
+                                    }}
+                                >
+                                    <div>
+                                        <h4 className="font-bold text-lg text-gray-900">{exam.examName || exam.name}</h4>
+                                        <p className="text-sm text-gray-500 font-medium mt-1">
+                                            <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {exam.startingDate || exam.startDate} → {exam.endingDate || exam.endDate}</span>
+                                            <span className="mx-2">•</span>
+                                            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">{exam.noOfDays || exam.totalDays} Days</span>
+                                        </p>
+                                        <p className="text-sm text-gray-400 mt-2 italic">{exam.examPurpose}</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-gray-400">{expandedExamId === exam.examId ? '▲' : '▼'}</span>
+                                        <Button
+                                            size="icon"
+                                            variant="outline"
+                                            className="h-9 w-9 text-gray-400 hover:text-blue-600 hover:border-blue-200"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setFormData({
+                                                    examName: exam.examName || exam.name,
+                                                    startDate: exam.startingDate || exam.startDate,
+                                                    endDate: exam.endingDate || exam.endDate,
+                                                    totalDays: exam.noOfDays || exam.totalDays,
+                                                    examPurpose: exam.examPurpose,
+                                                    deptCategories: formData.deptCategories
+                                                });
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            size="icon"
+                                            variant="outline"
+                                            className="h-9 w-9 text-gray-400 hover:text-red-600 hover:border-red-200"
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (confirm("Are you sure you want to delete this exam? This will delete all slots and quotas.")) {
+                                                    try {
+                                                        await axios.delete(`/api/admin/exams/${exam.examId}`);
+                                                        loadData();
+                                                    } catch (err) {
+                                                        alert("Delete failed: " + err.message);
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-2">
-                                    <Button size="sm" variant="outline" title="Edit Exam"><Pencil className="h-4 w-4" /></Button>
-                                    <Button size="sm" variant={exam.isOpen ? "secondary" : "default"} title={exam.isOpen ? "Close Booking" : "Open Booking"}>
-                                        {exam.isOpen ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                                    </Button>
-                                    <Button size="sm" variant="destructive" title="Delete Exam"><Trash2 className="h-4 w-4" /></Button>
-                                </div>
+
+                                {/* Expanded Department-wise Slots */}
+                                {expandedExamId === exam.examId && (
+                                    <div className="border-t border-gray-100 bg-gray-50 p-6">
+                                        <h5 className="font-bold text-gray-700 mb-4">Department-wise Slots</h5>
+                                        {examQuotas.length === 0 ? (
+                                            <p className="text-gray-400 text-sm">No quotas found for this exam.</p>
+                                        ) : (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-white text-gray-500 font-bold uppercase text-xs">
+                                                        <tr>
+                                                            <th className="p-3 text-left">Department</th>
+                                                            <th className="p-3 text-center">Category</th>
+                                                            <th className="p-3 text-center">Max Slots</th>
+                                                            <th className="p-3 text-center">Booked</th>
+                                                            <th className="p-3 text-center">Status</th>
+                                                            <th className="p-3 text-right">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {examQuotas.map(q => (
+                                                            <tr key={q.id} className="hover:bg-white transition-colors">
+                                                                <td className="p-3 font-bold text-gray-900">{q.department?.deptCode || 'N/A'}</td>
+                                                                <td className="p-3 text-center">
+                                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${q.categoryType === 1 ? 'bg-blue-100 text-blue-700' :
+                                                                            q.categoryType === 2 ? 'bg-green-100 text-green-700' :
+                                                                                'bg-pink-100 text-pink-700'
+                                                                        }`}>
+                                                                        {q.categoryType === 1 ? 'Day Scholar' : q.categoryType === 2 ? 'Hostel Boys' : 'Hostel Girls'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="p-3 text-center font-bold">{q.maxCount}</td>
+                                                                <td className="p-3 text-center">{q.currentFill || 0}</td>
+                                                                <td className="p-3 text-center">
+                                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${q.currentFill >= q.maxCount ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                                                        }`}>
+                                                                        {q.currentFill >= q.maxCount ? 'FULL' : 'OPEN'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="p-3 text-right">
+                                                                    <div className="flex justify-end gap-1">
+                                                                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-blue-600 hover:bg-blue-50">
+                                                                            Edit
+                                                                        </Button>
+                                                                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-orange-600 hover:bg-orange-50">
+                                                                            Close
+                                                                        </Button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

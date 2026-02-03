@@ -32,7 +32,9 @@ public class SlotController {
     public ResponseEntity<?> createSlot(@RequestBody Dtos.CreateSlotRequest request) {
         // 1. Map DTO to Slot
         Slot slot = new Slot();
-        slot.setExamDate(LocalDate.parse(request.getExamDate()));
+        // Parse YYYY-MM-DD to YYYYMMDD integer
+        String dateStr = request.getExamDate().replace("-", "");
+        slot.setExamDate(Integer.parseInt(dateStr));
         slot.setStartTime(LocalTime.parse(request.getStartTime()));
         slot.setEndTime(LocalTime.parse(request.getEndTime()));
         slot.setCategory(com.petbooking.entity.Student.StudentCategory.valueOf(request.getCategory()));
@@ -65,7 +67,8 @@ public class SlotController {
     @PutMapping("/{slotId}")
     public ResponseEntity<?> updateSlot(@PathVariable Long slotId, @RequestBody Dtos.CreateSlotRequest request) {
         return slotRepository.findById(slotId).map(slot -> {
-            slot.setExamDate(LocalDate.parse(request.getExamDate()));
+            String dateStr = request.getExamDate().replace("-", "");
+            slot.setExamDate(Integer.parseInt(dateStr));
             slot.setStartTime(LocalTime.parse(request.getStartTime()));
             slot.setEndTime(LocalTime.parse(request.getEndTime()));
             slot.setCategory(com.petbooking.entity.Student.StudentCategory.valueOf(request.getCategory()));

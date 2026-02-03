@@ -55,12 +55,8 @@ public class StudentController {
     @PostMapping("/book")
     public ResponseEntity<?> bookSlot(@RequestBody Dtos.BookingRequest request, Authentication auth) {
         String rollNo = auth.getName();
-        try {
-            Booking booking = bookingService.bookSlot(rollNo, request.getSlotId());
-            return ResponseEntity.ok(booking);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        Booking booking = bookingService.bookSlot(rollNo, request.getSlotId());
+        return ResponseEntity.ok(booking);
     }
 
     // ========== NEW: Exam Slot Endpoints ==========
@@ -90,15 +86,11 @@ public class StudentController {
     @PostMapping("/book-exam-slot")
     public ResponseEntity<?> bookExamSlot(@RequestBody java.util.Map<String, Integer> request, Authentication auth) {
         String rollNo = auth.getName();
-        try {
-            Integer examSlotId = request.get("examSlotId");
-            if (examSlotId == null) {
-                return ResponseEntity.badRequest().body("examSlotId is required");
-            }
-            Booking booking = bookingService.bookExamSlot(rollNo, examSlotId);
-            return ResponseEntity.ok(booking);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+        Integer examSlotId = request.get("examSlotId");
+        if (examSlotId == null) {
+            throw new RuntimeException("examSlotId is required");
         }
+        Booking booking = bookingService.bookExamSlot(rollNo, examSlotId);
+        return ResponseEntity.ok(booking);
     }
 }

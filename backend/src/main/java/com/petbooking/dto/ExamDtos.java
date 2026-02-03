@@ -17,6 +17,7 @@ public class ExamDtos {
         private LocalDate endDate;
         private Integer totalDays;
         private Integer perDeptCapacity;
+        private String examPurpose;
         private List<DeptCategoryCount> deptCategories;
     }
 

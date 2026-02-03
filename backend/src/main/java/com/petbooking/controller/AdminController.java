@@ -29,6 +29,31 @@ public class AdminController {
         return ResponseEntity.ok(departmentRepository.findAll());
     }
 
+    @PostMapping("/sync-departments")
+    public ResponseEntity<?> syncDepartmentsFromStudentMaster() {
+        // Get all unique deptCodes from student_master_upload
+        var allStudents = studentMasterUploadRepository.findAll();
+        java.util.Set<String> deptCodes = new java.util.HashSet<>();
+        for (var student : allStudents) {
+            if (student.getDeptCode() != null && !student.getDeptCode().trim().isEmpty()) {
+                deptCodes.add(student.getDeptCode().trim().toUpperCase());
+            }
+        }
+
+        int created = 0;
+        for (String code : deptCodes) {
+            if (!departmentRepository.existsByDeptCode(code)) {
+                com.petbooking.entity.Department dept = new com.petbooking.entity.Department();
+                dept.setDeptCode(code);
+                departmentRepository.save(dept);
+                created++;
+            }
+        }
+
+        return ResponseEntity.ok("Synced departments. Created " + created + " new departments. Total deptCodes found: "
+                + deptCodes.size());
+    }
+
     @GetMapping("/strength")
     public ResponseEntity<?> getAllStrengths() {
         return ResponseEntity.ok(deptExamStrengthRepository.findAll());
@@ -228,5 +253,15 @@ public class AdminController {
     @GetMapping("/exams/{examId}/quotas")
     public ResponseEntity<?> getExamQuotas(@PathVariable Long examId) {
         return ResponseEntity.ok(examInitService.getQuotasForExam(examId));
+    }
+
+    @DeleteMapping("/exams/{examId}")
+    public ResponseEntity<?> deleteExam(@PathVariable Long examId) {
+        try {
+            examInitService.deleteExam(examId);
+            return ResponseEntity.ok("Exam deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Delete failed: " + e.getMessage());
+        }
     }
 }

@@ -1,7 +1,9 @@
 package com.petbooking.service;
 
 import com.petbooking.dto.StudentUploadResponse;
+import com.petbooking.entity.Department;
 import com.petbooking.entity.StudentMasterUpload;
+import com.petbooking.repository.DepartmentRepository;
 import com.petbooking.repository.StudentMasterUploadRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -11,15 +13,16 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class StudentMasterUploadService {
 
     @Autowired
     private StudentMasterUploadRepository repository;
+
+    @Autowired
+    private DepartmentRepository departmentRepository;
 
     public StudentUploadResponse processExcelFile(MultipartFile file, Long adminId) throws IOException {
         InputStream inputStream = file.getInputStream();
@@ -30,6 +33,7 @@ public class StudentMasterUploadService {
         int insertedCount = 0;
         int skippedCount = 0;
         List<String> errors = new ArrayList<>();
+        Set<String> deptCodesProcessed = new HashSet<>();
 
         Iterator<Row> rowIterator = sheet.iterator();
 
@@ -57,6 +61,16 @@ public class StudentMasterUploadService {
                     errors.add("Row " + rowNum + ": Missing required fields (RollNo, Name, Email, Dept)");
                     skippedCount++;
                     continue;
+                }
+
+                // Auto-create department if not exists
+                if (!deptCodesProcessed.contains(deptCode.toUpperCase())) {
+                    if (!departmentRepository.existsByDeptCode(deptCode)) {
+                        Department newDept = new Department();
+                        newDept.setDeptCode(deptCode.toUpperCase());
+                        departmentRepository.save(newDept);
+                    }
+                    deptCodesProcessed.add(deptCode.toUpperCase());
                 }
 
                 // Map "Hosteller" -> "HOSTEL", "Dayscholar" -> "DAY"
@@ -91,20 +105,10 @@ public class StudentMasterUploadService {
                 entity.setRollNo(rollNo);
                 entity.setName(name);
                 entity.setEmail(email);
-                entity.setDeptCode(deptCode);
+                entity.setDeptCode(deptCode.toUpperCase());
                 entity.setStudentType(studentType.toUpperCase());
-                entity.setGender(gender != null ? gender.toUpperCase() : "MALE"); // Default or strict? Prompt says
-                                                                                  // Male/Female required. Assuming
-                                                                                  // 'gender' read above.
+                entity.setGender(gender != null ? gender.toUpperCase() : "MALE");
                 if (isEmpty(gender) && "DAY".equalsIgnoreCase(studentType)) {
-                    // Gender strictly required? Prompt says "if HOSTEL then gender must be MALE or
-                    // FEMALE".
-                    // Implicitly, DAY scholars might not need gender for hostel logic, but DB has
-                    // it nullable=false.
-                    // I will enforce gender for all to be safe, or allow default if DAY.
-                    // Prompt: "gender (MALE / FEMALE)". "if HOSTEL then gender must be MALE or
-                    // FEMALE".
-                    // I will assume M/F required for all.
                     if (isEmpty(gender)) {
                         errors.add("Row " + rowNum + ": Gender required");
                         skippedCount++;

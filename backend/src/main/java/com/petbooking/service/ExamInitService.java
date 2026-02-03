@@ -31,11 +31,23 @@ public class ExamInitService {
     public ExamInitResponse initializeExam(ExamInitRequest request) {
         // ============ STEP A: Create Exam Entry ============
         Exam exam = new Exam();
-        exam.setName(request.getExamName());
-        exam.setStartDate(request.getStartDate());
-        exam.setEndDate(request.getEndDate());
-        exam.setTotalDays(request.getTotalDays());
-        exam.setPerDeptCapacity(request.getPerDeptCapacity());
+        exam.setExamName(request.getExamName());
+        exam.setStartingDate(request.getStartDate());
+        exam.setEndingDate(request.getEndDate());
+        exam.setNoOfDays(request.getTotalDays());
+        exam.setExamPurpose(request.getExamPurpose());
+        // Calculate total counts
+        int totalDayScholars = request.getDeptCategories().stream()
+                .mapToInt(com.petbooking.dto.ExamDtos.DeptCategoryCount::getDayScholarCount).sum();
+        int totalHostelBoys = request.getDeptCategories().stream()
+                .mapToInt(com.petbooking.dto.ExamDtos.DeptCategoryCount::getHostellerBoysCount).sum();
+        int totalHostelGirls = request.getDeptCategories().stream()
+                .mapToInt(com.petbooking.dto.ExamDtos.DeptCategoryCount::getHostellerGirlsCount).sum();
+
+        exam.setTotalDayScholars(totalDayScholars);
+        exam.setTotalHostelBoys(totalHostelBoys);
+        exam.setTotalHostelGirls(totalHostelGirls);
+
         exam = examRepository.save(exam);
 
         Long examId = exam.getExamId();
@@ -65,10 +77,13 @@ public class ExamInitService {
             int dayIndex = 0;
 
             while (!currentDate.isAfter(request.getEndDate()) && dayIndex < request.getTotalDays()) {
+                boolean isLastDay = (dayIndex == request.getTotalDays() - 1);
+
                 // Day Scholars (Category 1)
-                int daySlotsToday = dayScholarPerDay + (dayScholarRemainder > 0 ? 1 : 0);
-                if (dayScholarRemainder > 0)
-                    dayScholarRemainder--;
+                int daySlotsToday = dayScholarPerDay;
+                if (isLastDay) {
+                    daySlotsToday += dayScholarRemainder;
+                }
 
                 for (int i = 0; i < daySlotsToday; i++) {
                     ExamSlotSeat slot = new ExamSlotSeat();
@@ -81,9 +96,10 @@ public class ExamInitService {
                 }
 
                 // Hostel Boys (Category 2)
-                int hostelBoysSlotsToday = hostelBoysPerDay + (hostelBoysRemainder > 0 ? 1 : 0);
-                if (hostelBoysRemainder > 0)
-                    hostelBoysRemainder--;
+                int hostelBoysSlotsToday = hostelBoysPerDay;
+                if (isLastDay) {
+                    hostelBoysSlotsToday += hostelBoysRemainder;
+                }
 
                 for (int i = 0; i < hostelBoysSlotsToday; i++) {
                     ExamSlotSeat slot = new ExamSlotSeat();
@@ -96,9 +112,10 @@ public class ExamInitService {
                 }
 
                 // Hostel Girls (Category 3)
-                int hostelGirlsSlotsToday = hostelGirlsPerDay + (hostelGirlsRemainder > 0 ? 1 : 0);
-                if (hostelGirlsRemainder > 0)
-                    hostelGirlsRemainder--;
+                int hostelGirlsSlotsToday = hostelGirlsPerDay;
+                if (isLastDay) {
+                    hostelGirlsSlotsToday += hostelGirlsRemainder;
+                }
 
                 for (int i = 0; i < hostelGirlsSlotsToday; i++) {
                     ExamSlotSeat slot = new ExamSlotSeat();
@@ -153,8 +170,8 @@ public class ExamInitService {
         // ============ Return Summary ============
         ExamInitResponse response = new ExamInitResponse();
         response.setExamId(examId);
-        response.setExamName(exam.getName());
-        response.setTotalDays(exam.getTotalDays());
+        response.setExamName(exam.getExamName());
+        response.setTotalDays(exam.getNoOfDays());
         response.setTotalSlotsGenerated(totalSlotsGenerated);
         response.setQuotasCreated(quotasCreated);
 
@@ -181,5 +198,26 @@ public class ExamInitService {
      */
     public List<ExamQuota> getQuotasForExam(Long examId) {
         return quotaRepository.findByExamExamId(examId);
+    }
+
+    /**
+     * Delete an exam and all related data
+     */
+    @Transactional
+    public void deleteExam(Long examId) {
+        if (!examRepository.existsById(examId)) {
+            throw new RuntimeException("Exam not found: " + examId);
+        }
+
+        // Delete related data first
+        slotSeatRepository.deleteByExamExamId(examId);
+        quotaRepository.deleteByExamExamId(examId);
+
+        // Delete slots table entries if any (legacy check)
+        // Note: If you have other tables referencing exam, handling them here is good
+        // practice.
+
+        // Delete the exam
+        examRepository.deleteById(examId);
     }
 }

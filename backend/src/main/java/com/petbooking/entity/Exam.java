@@ -1,6 +1,5 @@
 package com.petbooking.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,7 +12,6 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Exam {
 
     @Id
@@ -21,26 +19,30 @@ public class Exam {
     @Column(name = "exam_id")
     private Long examId;
 
-    @Column(name = "name", nullable = false)
-    private String name;
+    @Column(name = "exam_name", nullable = false)
+    private String examName;
 
-    @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
+    @Column(name = "no_of_days", nullable = false)
+    private Integer noOfDays;
 
-    @Column(name = "end_date", nullable = false)
-    private LocalDate endDate;
+    @Column(name = "starting_date", nullable = false)
+    private LocalDate startingDate;
 
-    @Column(name = "total_days")
-    private Integer totalDays;
+    @Column(name = "ending_date", nullable = false)
+    private LocalDate endingDate;
 
-    @Column(name = "per_dept_capacity")
-    private Integer perDeptCapacity;
+    @Column(name = "exam_purpose")
+    private String examPurpose;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Column(name = "total_day_scholars")
+    private Integer totalDayScholars = 0;
 
-    @PrePersist
-    public void prePersist() {
-        this.createdAt = LocalDateTime.now();
-    }
+    @Column(name = "total_hostel_boys")
+    private Integer totalHostelBoys = 0;
+
+    @Column(name = "total_hostel_girls")
+    private Integer totalHostelGirls = 0;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 }

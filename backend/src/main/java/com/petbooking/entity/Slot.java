@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
 import com.petbooking.entity.Student.StudentCategory;
@@ -22,7 +21,16 @@ public class Slot {
     private Long slotId;
 
     @Column(name = "exam_date", nullable = false)
-    private LocalDate examDate;
+    private Integer examDate; // Changed from LocalDate to Integer as requested
+
+    @Column(name = "exam_id")
+    private Long examId;
+
+    @Column(name = "dept_code")
+    private String deptCode;
+
+    @Column(name = "roll_no")
+    private String rollNo;
 
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;

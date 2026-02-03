@@ -8,6 +8,21 @@ CREATE TABLE departments (
     dept_code VARCHAR(10) NOT NULL UNIQUE
 );
 
+-- Exams Table
+CREATE TABLE exams (
+    exam_id BIGSERIAL PRIMARY KEY,
+    exam_name VARCHAR(100) NOT NULL,
+    no_of_days INT NOT NULL,
+    starting_date DATE NOT NULL,
+    ending_date DATE NOT NULL,
+    exam_purpose VARCHAR(255),
+    total_day_scholars INT DEFAULT 0,
+    total_hostel_boys INT DEFAULT 0,
+    total_hostel_girls INT DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT valid_exam_dates CHECK (starting_date <= ending_date)
+);
+
 -- Students Table
 CREATE TABLE students (
     roll_no VARCHAR(20) PRIMARY KEY,
@@ -29,13 +44,19 @@ CREATE TABLE admins (
 -- Slots Table
 CREATE TABLE slots (
     slot_id BIGSERIAL PRIMARY KEY,
-    exam_date DATE NOT NULL,
+    exam_date INT NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     category student_category NOT NULL,
     booking_open BOOLEAN NOT NULL DEFAULT FALSE,
+    dept_code VARCHAR(10),
+    roll_no VARCHAR(20),
+    exam_id BIGINT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT valid_time_range CHECK (start_time < end_time)
+    CONSTRAINT valid_time_range CHECK (start_time < end_time),
+    CONSTRAINT fk_slots_dept FOREIGN KEY (dept_code) REFERENCES departments(dept_code),
+    CONSTRAINT fk_slots_roll FOREIGN KEY (roll_no) REFERENCES students(roll_no),
+    CONSTRAINT fk_slots_exam FOREIGN KEY (exam_id) REFERENCES exams(exam_id)
 );
 
 -- Dept Exam Strength (How many students expected)

@@ -14,26 +14,30 @@ import java.util.Optional;
 @Repository
 public interface ExamSlotSeatRepository extends JpaRepository<ExamSlotSeat, Long> {
 
-    // Find available slots for a student's exam, dept, and category
-    @Query("SELECT s FROM ExamSlotSeat s WHERE s.exam.examId = :examId " +
-            "AND s.department.deptId = :deptId AND s.categoryType = :categoryType " +
-            "AND s.status = 'AVAILABLE' ORDER BY s.slotDate")
-    List<ExamSlotSeat> findAvailableSlots(@Param("examId") Long examId,
-            @Param("deptId") Long deptId,
-            @Param("categoryType") Integer categoryType);
+        // Find available slots for a student's exam, dept, and category
+        @Query("SELECT s FROM ExamSlotSeat s WHERE s.exam.examId = :examId " +
+                        "AND s.department.deptId = :deptId AND s.categoryType = :categoryType " +
+                        "AND s.status = 'AVAILABLE' ORDER BY s.slotDate")
+        List<ExamSlotSeat> findAvailableSlots(@Param("examId") Long examId,
+                        @Param("deptId") Long deptId,
+                        @Param("categoryType") Integer categoryType);
 
-    // Atomic booking - find first available and lock
-    @Query("SELECT s FROM ExamSlotSeat s WHERE s.exam.examId = :examId " +
-            "AND s.department.deptId = :deptId AND s.categoryType = :categoryType " +
-            "AND s.slotDate = :slotDate AND s.status = 'AVAILABLE'")
-    List<ExamSlotSeat> findAvailableSlotForBooking(@Param("examId") Long examId,
-            @Param("deptId") Long deptId,
-            @Param("categoryType") Integer categoryType,
-            @Param("slotDate") LocalDate slotDate);
+        // Atomic booking - find first available and lock
+        @Query("SELECT s FROM ExamSlotSeat s WHERE s.exam.examId = :examId " +
+                        "AND s.department.deptId = :deptId AND s.categoryType = :categoryType " +
+                        "AND s.slotDate = :slotDate AND s.status = 'AVAILABLE'")
+        List<ExamSlotSeat> findAvailableSlotForBooking(@Param("examId") Long examId,
+                        @Param("deptId") Long deptId,
+                        @Param("categoryType") Integer categoryType,
+                        @Param("slotDate") LocalDate slotDate);
 
-    // Count slots by exam
-    long countByExamExamId(Long examId);
+        // Count slots by exam
+        long countByExamExamId(Long examId);
 
-    // Check if student already booked
-    boolean existsByRollNumber(String rollNumber);
+        // Check if student already booked
+        // Check if student already booked
+        boolean existsByRollNumber(String rollNumber);
+
+        // Delete all slots for an exam
+        void deleteByExamExamId(Long examId);
 }
