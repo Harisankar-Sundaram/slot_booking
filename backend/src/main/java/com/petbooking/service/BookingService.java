@@ -279,37 +279,44 @@ public class BookingService {
     /**
      * Get student's booked slot for an exam.
      */
-    public java.util.Map<String, Object> getStudentBooking(String rollNo) {
-        var bookedSlot = slotSeatRepository.findByRollNumber(rollNo);
+    /**
+     * Get student's booked slots for ALL exams.
+     */
+    public java.util.List<java.util.Map<String, Object>> getStudentBookings(String rollNo) {
+        java.util.List<ExamSlotSeat> bookedSlots = slotSeatRepository.findByRollNumber(rollNo);
 
-        if (bookedSlot.isEmpty()) {
-            return null;
+        if (bookedSlots.isEmpty()) {
+            return java.util.Collections.emptyList();
         }
 
-        ExamSlotSeat slot = bookedSlot.get();
-        Exam exam = slot.getExam();
+        return bookedSlots.stream().map(slot -> {
+            Exam exam = slot.getExam();
+            Integer categoryType = slot.getCategoryType();
 
-        Integer categoryType = slot.getCategoryType();
+            var result = new java.util.HashMap<String, Object>();
+            result.put("slotId", slot.getSlotId());
+            result.put("examId", exam.getExamId());
+            result.put("examName", exam.getExamName());
+            result.put("slotDate", slot.getSlotDate().toString());
+            result.put("deptCode", slot.getDepartment().getDeptCode());
+            result.put("category",
+                    categoryType == 1 ? "Day Scholar" : categoryType == 2 ? "Hostel Boys" : "Hostel Girls");
+            result.put("status", slot.getStatus());
+            result.put("hasBooking", true); // Helper flag
 
-        var result = new java.util.HashMap<String, Object>();
-        result.put("slotId", slot.getSlotId());
-        result.put("examId", exam.getExamId());
-        result.put("examName", exam.getExamName());
-        result.put("slotDate", slot.getSlotDate().toString());
-        result.put("deptCode", slot.getDepartment().getDeptCode());
-        result.put("category", categoryType == 1 ? "Day Scholar" : categoryType == 2 ? "Hostel Boys" : "Hostel Girls");
-        result.put("status", slot.getStatus());
+            // Include time window based on category
+            if (categoryType == 1) {
+                result.put("startTime",
+                        exam.getDayScholarStartTime() != null ? exam.getDayScholarStartTime().toString() : "TBD");
+                result.put("endTime",
+                        exam.getDayScholarEndTime() != null ? exam.getDayScholarEndTime().toString() : "TBD");
+            } else {
+                result.put("startTime",
+                        exam.getHostelStartTime() != null ? exam.getHostelStartTime().toString() : "TBD");
+                result.put("endTime", exam.getHostelEndTime() != null ? exam.getHostelEndTime().toString() : "TBD");
+            }
 
-        // Include time window based on category
-        if (categoryType == 1) {
-            result.put("startTime",
-                    exam.getDayScholarStartTime() != null ? exam.getDayScholarStartTime().toString() : "TBD");
-            result.put("endTime", exam.getDayScholarEndTime() != null ? exam.getDayScholarEndTime().toString() : "TBD");
-        } else {
-            result.put("startTime", exam.getHostelStartTime() != null ? exam.getHostelStartTime().toString() : "TBD");
-            result.put("endTime", exam.getHostelEndTime() != null ? exam.getHostelEndTime().toString() : "TBD");
-        }
-
-        return result;
+            return result;
+        }).collect(java.util.stream.Collectors.toList());
     }
 }

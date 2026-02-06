@@ -228,18 +228,15 @@ public class StudentController {
     /**
      * Get student's booked slot (if any).
      */
+    /**
+     * Get student's booked slots (if any).
+     */
     @GetMapping("/my-booking")
     public ResponseEntity<?> getMyBooking(Authentication auth) {
         try {
             String rollNo = auth.getName();
-            var booking = bookingService.getStudentBooking(rollNo);
-
-            if (booking == null) {
-                return ResponseEntity.ok(java.util.Map.of("hasBooking", false));
-            }
-
-            booking.put("hasBooking", true);
-            return ResponseEntity.ok(booking);
+            var bookings = bookingService.getStudentBookings(rollNo);
+            return ResponseEntity.ok(java.util.Map.of("bookings", bookings));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
