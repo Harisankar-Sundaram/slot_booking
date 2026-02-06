@@ -10,6 +10,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin(origins = "*") // Allow frontend access
 public class AuthController {
 
     @Autowired
@@ -17,15 +18,15 @@ public class AuthController {
 
     @PostMapping("/student/login")
     public ResponseEntity<?> studentLogin(@RequestBody Dtos.LoginRequest request) {
-        authService.initiateStudentLogin(request);
-        return ResponseEntity.ok(Map.of("message", "OTP sent to email"));
+        try {
+            String token = authService.studentLogin(request);
+            return ResponseEntity.ok(Map.of("token", token));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
-    @PostMapping("/student/verify")
-    public ResponseEntity<?> verifyOtp(@RequestBody Dtos.OtpVerificationRequest request) {
-        String token = authService.verifyStudentOtp(request);
-        return ResponseEntity.ok(Map.of("token", token));
-    }
+    // Removed /student/verify as it is no longer needed
 
     @PostMapping("/admin/login")
     public ResponseEntity<?> adminLogin(@RequestBody Dtos.AdminLoginRequest request) {

@@ -8,7 +8,11 @@ import lombok.AllArgsConstructor;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "exam_slot_seats")
+@Table(name = "exam_slot_seats", indexes = {
+        @Index(name = "idx_exam_dept_cat_date", columnList = "exam_id, dept_id, category_type, slot_date"),
+        @Index(name = "idx_roll_number", columnList = "roll_number"),
+        @Index(name = "idx_exam_book", columnList = "exam_id, book")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -41,4 +45,7 @@ public class ExamSlotSeat {
 
     @Column(name = "status", nullable = false)
     private String status = "AVAILABLE"; // AVAILABLE, BOOKED
+
+    @Column(name = "book", nullable = false)
+    private Boolean book = false; // false = unpublished, true = published/bookable
 }

@@ -48,6 +48,15 @@ public class ExamInitService {
         exam.setTotalHostelBoys(totalHostelBoys);
         exam.setTotalHostelGirls(totalHostelGirls);
 
+        // Set time windows for different student types
+        exam.setDayScholarStartTime(request.getDayScholarStartTime());
+        exam.setDayScholarEndTime(request.getDayScholarEndTime());
+        exam.setHostelStartTime(request.getHostelStartTime());
+        exam.setHostelEndTime(request.getHostelEndTime());
+        if (request.getSystemsPerSlot() != null) {
+            exam.setSystemsPerSlot(request.getSystemsPerSlot());
+        }
+
         exam = examRepository.save(exam);
 
         Long examId = exam.getExamId();
@@ -77,12 +86,12 @@ public class ExamInitService {
             int dayIndex = 0;
 
             while (!currentDate.isAfter(request.getEndDate()) && dayIndex < request.getTotalDays()) {
-                boolean isLastDay = (dayIndex == request.getTotalDays() - 1);
+                // Fair Distribution Logic: Distribute remainders to the first 'remainder' days
 
-                // Day Scholars (Category 1)
+                // Day Scholars
                 int daySlotsToday = dayScholarPerDay;
-                if (isLastDay) {
-                    daySlotsToday += dayScholarRemainder;
+                if (dayIndex < dayScholarRemainder) {
+                    daySlotsToday++;
                 }
 
                 for (int i = 0; i < daySlotsToday; i++) {
@@ -92,13 +101,14 @@ public class ExamInitService {
                     slot.setDepartment(dept);
                     slot.setCategoryType(1); // Day Scholar
                     slot.setStatus("AVAILABLE");
+                    slot.setBook(false);
                     allSlots.add(slot);
                 }
 
-                // Hostel Boys (Category 2)
+                // Hostel Boys
                 int hostelBoysSlotsToday = hostelBoysPerDay;
-                if (isLastDay) {
-                    hostelBoysSlotsToday += hostelBoysRemainder;
+                if (dayIndex < hostelBoysRemainder) {
+                    hostelBoysSlotsToday++;
                 }
 
                 for (int i = 0; i < hostelBoysSlotsToday; i++) {
@@ -108,13 +118,14 @@ public class ExamInitService {
                     slot.setDepartment(dept);
                     slot.setCategoryType(2); // Hostel Boys
                     slot.setStatus("AVAILABLE");
+                    slot.setBook(false);
                     allSlots.add(slot);
                 }
 
-                // Hostel Girls (Category 3)
+                // Hostel Girls
                 int hostelGirlsSlotsToday = hostelGirlsPerDay;
-                if (isLastDay) {
-                    hostelGirlsSlotsToday += hostelGirlsRemainder;
+                if (dayIndex < hostelGirlsRemainder) {
+                    hostelGirlsSlotsToday++;
                 }
 
                 for (int i = 0; i < hostelGirlsSlotsToday; i++) {
@@ -124,6 +135,7 @@ public class ExamInitService {
                     slot.setDepartment(dept);
                     slot.setCategoryType(3); // Hostel Girls
                     slot.setStatus("AVAILABLE");
+                    slot.setBook(false);
                     allSlots.add(slot);
                 }
 

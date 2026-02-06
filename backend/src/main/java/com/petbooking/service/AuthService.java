@@ -33,47 +33,34 @@ public class AuthService {
     // But requirement says "password_hash", so we should use BCrypt.
     // For now, I'll assume simple match or add BCrypt later.
 
-    public void initiateStudentLogin(Dtos.LoginRequest request) {
-        // 1. Verify against StudentMasterUpload (Source of Truth for Allowed Students)
+    /**
+     * Direct Student Login (No OTP)
+     * Validates RollNo & Email against Master Records.
+     * Auto-registers if not already in Students table.
+     */
+    public String studentLogin(Dtos.LoginRequest request) {
+        // 1. Verify against StudentMasterUpload (Source of Truth)
         com.petbooking.entity.StudentMasterUpload masterRecord = studentMasterUploadRepository
                 .findByRollNo(request.getRollNo())
-                .orElseThrow(() -> new RuntimeException("Student not found in master records"));
+                .orElseThrow(() -> new RuntimeException("Student not found in master records. Please contact admin."));
 
         if (!masterRecord.getEmail().equalsIgnoreCase(request.getEmail())) {
-            throw new RuntimeException("Email does not match master records");
+            throw new RuntimeException("Email does not match our records for this Roll Number.");
         }
 
-        // REMOVED: Strict check for existing registration.
-        // We now allow OTP if they are in the master list, and auto-register on verify.
-
-        // Rate Check
-        if (!otpService.checkRateLimit("rate:" + request.getEmail(), 5, 300)) {
-            throw new RuntimeException("Too many attempts. Try again later.");
-        }
-
-        String otp = String.format("%06d", new Random().nextInt(999999));
-        otpService.saveOtp("otp:" + request.getEmail(), otp);
-
-        // Mock Send Email
-        System.out.println("OTP for " + request.getEmail() + ": " + otp);
-    }
-
-    public String verifyStudentOtp(Dtos.OtpVerificationRequest request) {
-        String key = "otp:" + request.getEmail();
-        String savedOtp = otpService.getOtp(key);
-
-        if (savedOtp == null || !savedOtp.equals(request.getOtp())) {
-            throw new RuntimeException("Invalid or Expired OTP");
-        }
-
-        otpService.deleteOtp(key);
-
-        // Check if student exists, if not, REGISTER THEM using Master Data
+        // 2. Check if student exists in main table, if not, REGISTER THEM
         Student student = studentRepository.findByEmail(request.getEmail())
                 .orElseGet(() -> registerStudentFromMaster(request.getEmail()));
 
+        // 3. Generate Token
         return jwtUtils.generateToken(student.getRollNo(), "STUDENT");
     }
+
+    // REMOVED OTP METHODS to simplify login as requested
+    /*
+     * public void initiateStudentLogin(Dtos.LoginRequest request) { ... }
+     * public String verifyStudentOtp(Dtos.OtpVerificationRequest request) { ... }
+     */
 
     private Student registerStudentFromMaster(String email) {
         com.petbooking.entity.StudentMasterUpload master = studentMasterUploadRepository.findByEmail(email)

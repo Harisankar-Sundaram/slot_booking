@@ -10,10 +10,10 @@ axios.defaults.baseURL = "http://localhost:8080";
 export default function Login() {
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [step, setStep] = useState(1);
+    // step and otp removed
     const [rollNo, setRollNo] = useState("");
     const [email, setEmail] = useState("");
-    const [otp, setOtp] = useState("");
+    // otp removed
     const [adminEmail, setAdminEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -27,16 +27,11 @@ export default function Login() {
         e.preventDefault();
         setLoading(true);
         try {
-            if (step === 1) {
-                await axios.post("/api/auth/student/login", { rollNo, email });
-                toast.success("OTP sent to your email!");
-                setStep(2);
-            } else {
-                const res = await axios.post("/api/auth/student/verify", { email, otp });
-                toast.success("Login successful! Redirecting...");
-                login(res.data.token, "STUDENT");
-                navigate("/student");
-            }
+            const res = await axios.post("/api/auth/student/login", { rollNo, email });
+            toast.success("Login successful! Redirecting...");
+            // Assuming the token is in res.data.token directly from the new backend
+            login(res.data.token, "STUDENT");
+            navigate("/student");
         } catch (err) {
             toast.error(err.response?.data?.message || "Student Login failed");
         } finally { setLoading(false); }
@@ -128,8 +123,7 @@ export default function Login() {
                 .input-group .icon {
                     position: absolute;
                     left: 15px;
-                    top: 50%;
-                    transform: translateY(-50%);
+                    top: 38px; /* Adjusted to align with input field (below label) */
                     color: #888;
                 }
                 .input-group label {
@@ -242,16 +236,7 @@ export default function Login() {
                 .ghost-btn:hover {
                     background: #fff;
                     color: #667eea;
-                }
-                .otp-notice {
-                    background: #dcfce7;
-                    color: #166534;
-                    padding: 12px;
-                    border-radius: 10px;
-                    text-align: center;
-                    font-size: 13px;
-                    margin-bottom: 15px;
-                    border: 1px solid #bbf7d0;
+                    opacity: 1;
                 }
                 .form-title {
                     font-size: 28px;
@@ -299,60 +284,30 @@ export default function Login() {
                 <div className="form-box student">
                     <form onSubmit={handleStudentLogin}>
                         <h1 className="form-title">🎓 Student Login</h1>
-                        {step === 1 ? (
-                            <>
-                                <div className="input-group">
-                                    <label>Roll Number <span className="required">*</span></label>
-                                    <User className="icon" size={18} />
-                                    <input
-                                        placeholder="Enter your roll number"
-                                        value={rollNo}
-                                        onChange={e => setRollNo(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="input-group">
-                                    <label>College Email <span className="required">*</span></label>
-                                    <Mail className="icon" size={18} />
-                                    <input
-                                        placeholder="Enter your college email"
-                                        type="email"
-                                        value={email}
-                                        onChange={e => setEmail(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <button type="submit" className="main-btn" disabled={loading}>
-                                    {loading ? <Loader2 className="animate-spin" size={20} /> : "Send OTP →"}
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <div className="otp-notice">
-                                    ✓ OTP sent to <strong>{email}</strong>
-                                </div>
-                                <div className="input-group">
-                                    <label>OTP Code <span className="required">*</span></label>
-                                    <ShieldCheck className="icon" size={18} />
-                                    <input
-                                        placeholder="Enter 6-digit OTP"
-                                        value={otp}
-                                        onChange={e => setOtp(e.target.value)}
-                                        maxLength={6}
-                                        required
-                                        style={{ letterSpacing: '4px', fontWeight: 'bold' }}
-                                    />
-                                </div>
-                                <div style={{ display: 'flex', gap: '10px' }}>
-                                    <button type="button" onClick={() => setStep(1)} className="main-btn secondary" style={{ flex: 1 }}>
-                                        ← Back
-                                    </button>
-                                    <button type="submit" className="main-btn" style={{ flex: 2 }} disabled={loading}>
-                                        {loading ? <Loader2 className="animate-spin" size={20} /> : "Verify & Login"}
-                                    </button>
-                                </div>
-                            </>
-                        )}
+                        <div className="input-group">
+                            <label>Roll Number <span className="required">*</span></label>
+                            <User className="icon" size={18} />
+                            <input
+                                placeholder="Enter your roll number"
+                                value={rollNo}
+                                onChange={e => setRollNo(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label>College Email <span className="required">*</span></label>
+                            <Mail className="icon" size={18} />
+                            <input
+                                placeholder="Enter your college email"
+                                type="email"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="main-btn" disabled={loading}>
+                            {loading ? <Loader2 className="animate-spin" size={20} /> : "Login →"}
+                        </button>
                         <p className="required-note"><span className="required">*</span> indicates required field</p>
                     </form>
                 </div>
@@ -397,8 +352,8 @@ export default function Login() {
                 <div className="toggle-box">
                     <div className="toggle-panel toggle-left">
                         <h1 className="toggle-title">Student Portal</h1>
-                        <p className="toggle-desc">Book your exam slot quickly and securely with OTP verification.</p>
-                        <button className="ghost-btn" onClick={() => { setIsAdmin(false); setStep(1); }}>
+                        <p className="toggle-desc">Book your exam slot quickly and securely using your Roll Number.</p>
+                        <button className="ghost-btn" onClick={() => { setIsAdmin(false); }}>
                             ← Student Login
                         </button>
                     </div>

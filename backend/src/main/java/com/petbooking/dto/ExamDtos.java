@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 public class ExamDtos {
@@ -19,6 +20,13 @@ public class ExamDtos {
         private Integer perDeptCapacity;
         private String examPurpose;
         private List<DeptCategoryCount> deptCategories;
+
+        // Time windows for different student types
+        private LocalTime dayScholarStartTime;
+        private LocalTime dayScholarEndTime;
+        private LocalTime hostelStartTime;
+        private LocalTime hostelEndTime;
+        private Integer systemsPerSlot;
     }
 
     @Data

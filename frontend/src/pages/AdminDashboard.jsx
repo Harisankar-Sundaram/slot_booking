@@ -349,7 +349,7 @@ function BookingViewer() {
 
     // Extract unique dates and times for filters
     const uniqueDates = [...new Set(bookings.map(b => {
-        const d = b.slot?.examDate || b.examQuota?.exam?.startingDate;
+        const d = b.slot?.slotDate || b.slot?.examDate || b.examQuota?.exam?.startingDate;
         return formatDate(d);
     }).filter(Boolean))].sort();
 
@@ -361,7 +361,7 @@ function BookingViewer() {
             (b.slot?.category === filterCategory) ||
             (b.examQuota && b.examQuota.categoryType === (filterCategory === 'DAY' ? 1 : filterCategory === 'HOSTEL_MALE' ? 2 : 3));
 
-        const rawDate = b.slot?.examDate || b.examQuota?.exam?.startingDate;
+        const rawDate = b.slot?.slotDate || b.slot?.examDate || b.examQuota?.exam?.startingDate;
         const dateStr = formatDate(rawDate);
         const matchDate = filterDate === "ALL" || (dateStr === filterDate);
 
@@ -452,7 +452,7 @@ function BookingViewer() {
                                         })()}
                                     </td>
                                     <td className="p-3">
-                                        {formatDate(b.slot?.examDate || b.examQuota?.exam?.startingDate)}
+                                        {formatDate(b.slot?.slotDate || b.slot?.examDate || b.examQuota?.exam?.startingDate)}
                                     </td>
                                     <td className="p-3">{b.slot?.startTime || "09:00 - 17:00"}</td>
                                 </tr>
@@ -1035,12 +1035,30 @@ function ExamManager() {
                                             setExamQuotas([]);
                                         } else {
                                             setExpandedExamId(exam.examId);
+                                            // Load Quotas
                                             try {
                                                 const res = await axios.get(`/api/admin/exams/${exam.examId}/quotas`);
                                                 setExamQuotas(res.data);
-                                            } catch (e) {
-                                                console.error("Failed to load quotas:", e);
-                                            }
+                                            } catch (e) { console.error(e); }
+                                            // Load Dashboard Stats
+                                            try {
+                                                const res = await axios.get(`/api/admin/exams/${exam.examId}/dashboard`);
+                                                let dStats = res.data || [];
+                                                // Sort by date
+                                                dStats.sort((a, b) => new Date(a.slotDate) - new Date(b.slotDate));
+                                                // Save to state (need to add state for stats)
+                                                exam.dashboardStats = dStats;
+                                            } catch (e) { console.error(e); }
+                                            // Load Dept Stats
+                                            try {
+                                                const res = await axios.get(`/api/admin/exams/${exam.examId}/department-stats`);
+                                                let dpStats = res.data || [];
+                                                // Sort by dept code
+                                                dpStats.sort((a, b) => a.deptCode.localeCompare(b.deptCode));
+                                                exam.deptStats = dpStats;
+                                            } catch (e) { console.error(e); }
+                                            // Force re-render
+                                            setExams([...exams]);
                                         }
                                     }}
                                 >
@@ -1055,38 +1073,11 @@ function ExamManager() {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className="text-gray-400">{expandedExamId === exam.examId ? '▲' : '▼'}</span>
-                                        <Button
-                                            size="icon"
-                                            variant="outline"
-                                            className="h-9 w-9 text-gray-400 hover:text-blue-600 hover:border-blue-200"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setFormData({
-                                                    examName: exam.examName || exam.name,
-                                                    startDate: exam.startingDate || exam.startDate,
-                                                    endDate: exam.endingDate || exam.endDate,
-                                                    totalDays: exam.noOfDays || exam.totalDays,
-                                                    examPurpose: exam.examPurpose,
-                                                    deptCategories: formData.deptCategories
-                                                });
-                                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                                            }}
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            size="icon"
-                                            variant="outline"
-                                            className="h-9 w-9 text-gray-400 hover:text-red-600 hover:border-red-200"
+                                        <Button size="icon" variant="outline" className="h-9 w-9 text-gray-400 hover:text-red-600 hover:border-red-200"
                                             onClick={async (e) => {
                                                 e.stopPropagation();
-                                                if (confirm("Are you sure you want to delete this exam? This will delete all slots and quotas.")) {
-                                                    try {
-                                                        await axios.delete(`/api/admin/exams/${exam.examId}`);
-                                                        loadData();
-                                                    } catch (err) {
-                                                        alert("Delete failed: " + err.message);
-                                                    }
+                                                if (confirm("Are you sure you want to delete this exam?")) {
+                                                    try { await axios.delete(`/api/admin/exams/${exam.examId}`); loadData(); } catch (err) { alert("Delete failed: " + err.message); }
                                                 }
                                             }}
                                         >
@@ -1095,114 +1086,150 @@ function ExamManager() {
                                     </div>
                                 </div>
 
-                                {/* Expanded Department-wise Slots */}
+                                {/* Expanded View */}
                                 {expandedExamId === exam.examId && (
                                     <div className="border-t border-gray-100 bg-gray-50 p-6">
-                                        <h5 className="font-bold text-xl text-gray-800 mb-6">Department-wise Slots</h5>
-                                        {examQuotas.length === 0 ? (
-                                            <p className="text-gray-500 text-base">No quotas found for this exam.</p>
-                                        ) : (
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-base">
-                                                    <thead className="bg-white text-gray-600 font-bold uppercase text-sm">
-                                                        <tr>
-                                                            <th className="p-4 text-left">Department</th>
-                                                            <th className="p-4 text-center">Category</th>
-                                                            <th className="p-4 text-center">Max Slots</th>
-                                                            <th className="p-4 text-center">Booked</th>
-                                                            <th className="p-4 text-center">Available</th>
-                                                            <th className="p-4 text-center">Status</th>
-                                                            <th className="p-4 text-center">Actions</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-100">
-                                                        {examQuotas.map(q => (
-                                                            <tr key={q.id} className="hover:bg-white transition-colors">
-                                                                <td className="p-4 font-bold text-gray-900 text-lg">{q.department?.deptCode || 'N/A'}</td>
-                                                                <td className="p-4 text-center">
-                                                                    <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${q.categoryType === 1 ? 'bg-blue-100 text-blue-700' :
-                                                                        q.categoryType === 2 ? 'bg-green-100 text-green-700' :
-                                                                            'bg-pink-100 text-pink-700'
-                                                                        }`}>
-                                                                        {q.categoryType === 1 ? 'Day Scholar' : q.categoryType === 2 ? 'Hostel Boys' : 'Hostel Girls'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="p-4 text-center font-bold text-lg">{q.maxCount}</td>
-                                                                <td className="p-4 text-center text-lg">{q.currentFill || 0}</td>
-                                                                <td className="p-4 text-center text-lg font-bold text-green-600">{q.maxCount - (q.currentFill || 0)}</td>
-                                                                <td className="p-4 text-center">
-                                                                    <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${q.isClosed ? 'bg-gray-200 text-gray-600' :
-                                                                        q.currentFill >= q.maxCount ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                                                                        }`}>
-                                                                        {q.isClosed ? 'CLOSED' : q.currentFill >= q.maxCount ? 'FULL' : 'OPEN'}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="p-4 text-center">
-                                                                    <div className="flex justify-center gap-2">
-                                                                        <Button
-                                                                            size="icon"
-                                                                            variant="ghost"
-                                                                            className="h-9 w-9 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                                                                            title="Edit Quota"
-                                                                            onClick={async () => {
-                                                                                const newMax = prompt(`Edit max slots for ${q.department?.deptCode} - ${q.categoryType === 1 ? 'Day Scholar' : q.categoryType === 2 ? 'Hostel Boys' : 'Hostel Girls'}:`, q.maxCount);
-                                                                                if (newMax && !isNaN(parseInt(newMax))) {
-                                                                                    try {
-                                                                                        await axios.patch(`/api/admin/quotas/${q.id}`, { maxCount: parseInt(newMax) });
-                                                                                        const res = await axios.get(`/api/admin/exams/${exam.examId}/quotas`);
-                                                                                        setExamQuotas(res.data);
-                                                                                    } catch (e) {
-                                                                                        alert("Update failed: " + e.message);
-                                                                                    }
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            <Pencil className="h-5 w-5" />
-                                                                        </Button>
-                                                                        <Button
-                                                                            size="icon"
-                                                                            variant="ghost"
-                                                                            className={`h-9 w-9 ${q.isClosed ? 'text-green-600 hover:bg-green-50' : 'text-orange-600 hover:bg-orange-50'}`}
-                                                                            title={q.isClosed ? "Open Booking" : "Close Booking"}
-                                                                            onClick={async () => {
-                                                                                try {
-                                                                                    await axios.patch(`/api/admin/quotas/${q.id}/toggle`);
-                                                                                    const res = await axios.get(`/api/admin/exams/${exam.examId}/quotas`);
-                                                                                    setExamQuotas(res.data);
-                                                                                } catch (e) {
-                                                                                    alert("Toggle failed: " + e.message);
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            {q.isClosed ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
-                                                                        </Button>
-                                                                        <Button
-                                                                            size="icon"
-                                                                            variant="ghost"
-                                                                            className="h-9 w-9 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                                                            title="Delete Quota"
-                                                                            onClick={async () => {
-                                                                                if (confirm(`Delete quota for ${q.department?.deptCode} - ${q.categoryType === 1 ? 'Day Scholar' : q.categoryType === 2 ? 'Hostel Boys' : 'Hostel Girls'}?`)) {
-                                                                                    try {
-                                                                                        await axios.delete(`/api/admin/quotas/${q.id}`);
-                                                                                        const res = await axios.get(`/api/admin/exams/${exam.examId}/quotas`);
-                                                                                        setExamQuotas(res.data);
-                                                                                    } catch (e) {
-                                                                                        alert("Delete failed: " + e.message);
-                                                                                    }
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            <Trash2 className="h-5 w-5" />
-                                                                        </Button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+
+                                        {/* Global Controls */}
+                                        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                            <div>
+                                                <h5 className="font-black text-xl text-gray-800">Admin Controls</h5>
+                                                <p className="text-sm text-gray-500">Manage visibility and bookings</p>
                                             </div>
-                                        )}
+                                            <div className="flex gap-3">
+                                                <Button className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                                                    onClick={async () => {
+                                                        if (confirm("Publish ALL departments?")) {
+                                                            try {
+                                                                const res = await axios.post(`/api/admin/exams/${exam.examId}/publish`, {});
+                                                                alert(`Published all! ${res.data.slotsPublished} slots.`);
+                                                                // Reload stats
+                                                                const dpReq = await axios.get(`/api/admin/exams/${exam.examId}/department-stats`);
+                                                                exam.deptStats = dpReq.data;
+                                                                setExams([...exams]);
+                                                            } catch (e) { alert("Error: " + e.message); }
+                                                        }
+                                                    }}>
+                                                    <Eye className="h-4 w-4 mr-2" /> Publish All
+                                                </Button>
+                                                <Button className="bg-red-600 hover:bg-red-700 text-white font-bold"
+                                                    onClick={async () => {
+                                                        if (confirm("STOP all bookings?")) {
+                                                            try {
+                                                                const res = await axios.post(`/api/admin/exams/${exam.examId}/stop`);
+                                                                alert(`Stopped! ${res.data.slotsStopped} slots.`);
+                                                                // Reload stats
+                                                                const dpReq = await axios.get(`/api/admin/exams/${exam.examId}/department-stats`);
+                                                                exam.deptStats = dpReq.data;
+                                                                setExams([...exams]);
+                                                            } catch (e) { alert("Error: " + e.message); }
+                                                        }
+                                                    }}>
+                                                    <EyeOff className="h-4 w-4 mr-2" /> Stop All
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-8">
+                                            {/* Department Stats Table */}
+                                            <div>
+                                                <h5 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
+                                                    <LayoutDashboard className="h-5 w-5 text-indigo-600" />
+                                                    Department Status
+                                                </h5>
+                                                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                                                            <tr>
+                                                                <th className="p-3 text-left">Department</th>
+                                                                <th className="p-3 text-center">Total Slots</th>
+                                                                <th className="p-3 text-center">Booked</th>
+                                                                <th className="p-3 text-center">Available</th>
+                                                                <th className="p-3 text-center">Status</th>
+                                                                <th className="p-3 text-center">Action</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-100">
+                                                            {(exam.deptStats || []).map(ds => (
+                                                                <tr key={ds.deptCode} className="hover:bg-gray-50">
+                                                                    <td className="p-3 font-bold">{ds.deptCode}</td>
+                                                                    <td className="p-3 text-center">{ds.totalSlots}</td>
+                                                                    <td className="p-3 text-center font-bold text-blue-600">{ds.bookedSlots}</td>
+                                                                    <td className="p-3 text-center text-green-600">{ds.availableSlots}</td>
+                                                                    <td className="p-3 text-center">
+                                                                        <span className={`px-2 py-1 rounded text-xs font-bold ${ds.publishedSlots > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                                            {ds.publishedSlots > 0 ? 'PUBLISHED' : 'DRAFT'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="p-3 text-center">
+                                                                        <Button size="sm" variant="outline"
+                                                                            disabled={ds.publishedSlots > 0}
+                                                                            className={ds.publishedSlots > 0 ? "opacity-50" : "text-indigo-600 border-indigo-200 hover:bg-indigo-50"}
+                                                                            onClick={async () => {
+                                                                                if (ds.publishedSlots > 0) return;
+                                                                                try {
+                                                                                    await axios.post(`/api/admin/exams/${exam.examId}/publish`, { deptId: ds.deptId });
+                                                                                    alert(`Published for ${ds.deptCode}`);
+                                                                                    // Refresh
+                                                                                    const dpReq = await axios.get(`/api/admin/exams/${exam.examId}/department-stats`);
+                                                                                    exam.deptStats = dpReq.data;
+                                                                                    setExams([...exams]);
+                                                                                } catch (e) { alert("Failed: " + e.message); }
+                                                                            }}
+                                                                        >
+                                                                            {ds.publishedSlots > 0 ? "Live" : "Publish"}
+                                                                        </Button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                            {(exam.deptStats || []).length === 0 && (
+                                                                <tr><td colSpan="6" className="p-4 text-center text-gray-400">Loading stats...</td></tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            {/* Day-wise Stats Table */}
+                                            <div>
+                                                <h5 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
+                                                    <Calendar className="h-5 w-5 text-indigo-600" />
+                                                    Day-wise Summary
+                                                </h5>
+                                                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs">
+                                                            <tr>
+                                                                <th className="p-3 text-left">Date</th>
+                                                                <th className="p-3 text-center">Total Capacity</th>
+                                                                <th className="p-3 text-center">Booked</th>
+                                                                <th className="p-3 text-center">Available</th>
+                                                                <th className="p-3 text-center">Fill Rate</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-100">
+                                                            {(exam.dashboardStats || []).map((ds, idx) => (
+                                                                <tr key={idx} className="hover:bg-gray-50">
+                                                                    <td className="p-3 font-mono font-bold">{ds.slotDate}</td>
+                                                                    <td className="p-3 text-center">{ds.totalSlots}</td>
+                                                                    <td className="p-3 text-center font-bold text-blue-600">{ds.bookedSlots}</td>
+                                                                    <td className="p-3 text-center text-green-600">{ds.availableSlots}</td>
+                                                                    <td className="p-3 text-center">
+                                                                        <div className="w-full bg-gray-100 rounded-full h-2.5 dark:bg-gray-700">
+                                                                            <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${Math.round((ds.bookedSlots / (ds.totalSlots || 1)) * 100)}%` }}></div>
+                                                                        </div>
+                                                                        <span className="text-xs text-gray-500 mt-1 block">{Math.round((ds.bookedSlots / (ds.totalSlots || 1)) * 100)}%</span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                            {(exam.dashboardStats || []).length === 0 && (
+                                                                <tr><td colSpan="5" className="p-4 text-center text-gray-400">Loading day stats...</td></tr>
+                                                            )}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>

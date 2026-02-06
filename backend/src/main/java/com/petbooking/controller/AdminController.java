@@ -5,6 +5,7 @@ import com.petbooking.entity.Booking;
 import com.petbooking.entity.DeptExamStrength;
 import com.petbooking.repository.BookingRepository;
 import com.petbooking.repository.DeptExamStrengthRepository;
+import com.petbooking.repository.ExamQuotaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin")
+@CrossOrigin(origins = "*")
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
@@ -23,6 +25,10 @@ public class AdminController {
     private BookingRepository bookingRepository;
     @Autowired
     private com.petbooking.repository.DepartmentRepository departmentRepository;
+    @Autowired
+    private ExamQuotaRepository quotaRepository;
+    @Autowired
+    private com.petbooking.repository.ExamSlotSeatRepository slotSeatRepository;
 
     @GetMapping("/departments")
     public ResponseEntity<?> getAllDepartments() {
@@ -77,17 +83,61 @@ public class AdminController {
     }
 
     @GetMapping("/bookings")
-    public ResponseEntity<List<Booking>> getAllBookings(
+    public ResponseEntity<?> getAllBookings(
             @RequestParam(required = false) Long slotId,
             @RequestParam(required = false) Long deptId) {
 
-        if (slotId != null) {
-            return ResponseEntity.ok(bookingRepository.findBySlotSlotId(slotId));
-        }
-        if (deptId != null) {
-            return ResponseEntity.ok(bookingRepository.findByDepartmentDeptId(deptId));
-        }
-        return ResponseEntity.ok(bookingRepository.findAll());
+        // Fetch booked seats from ExamSlotSeat (Where rollNumber is not null)
+        // We ignore slotId/deptId filters for now or implement them if needed
+        List<com.petbooking.entity.ExamSlotSeat> bookedSeats = slotSeatRepository.findAll().stream()
+                .filter(s -> s.getRollNumber() != null)
+                .collect(java.util.stream.Collectors.toList());
+
+        // Map to response format expected by BookingViewer
+        // Frontend expects: bookingId, student(rollNo, name), department(deptCode),
+        // slot(slotDate, startTime, category)
+        List<java.util.Map<String, Object>> response = bookedSeats.stream().map(seat -> {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("bookingId", seat.getSlotId());
+
+            // Fetch student name lazily or just show rollNo if costly
+            // Ideally we should use a join query, but for now we have rollNumber in seat
+            java.util.Map<String, Object> studentMap = new java.util.HashMap<>();
+            studentMap.put("rollNo", seat.getRollNumber());
+            // We can try to fetch name if we have StudentRepository injected
+            studentRepository.findById(seat.getRollNumber()).ifPresent(s -> studentMap.put("name", s.getName()));
+            map.put("student", studentMap);
+
+            java.util.Map<String, Object> deptMap = new java.util.HashMap<>();
+            deptMap.put("deptCode", seat.getDepartment().getDeptCode());
+            map.put("department", deptMap);
+
+            java.util.Map<String, Object> slotMap = new java.util.HashMap<>();
+            slotMap.put("slotDate", seat.getSlotDate());
+            // Determine time/category
+            Integer cat = seat.getCategoryType();
+            String catStr = cat == 1 ? "DAY" : cat == 2 ? "HOSTEL_MALE" : "HOSTEL_FEMALE";
+            slotMap.put("category", catStr);
+
+            // Get time from Exam
+            com.petbooking.entity.Exam exam = seat.getExam();
+            if (cat == 1) {
+                slotMap.put("startTime",
+                        exam.getDayScholarStartTime() != null ? exam.getDayScholarStartTime().toString() : "TBD");
+            } else {
+                slotMap.put("startTime",
+                        exam.getHostelStartTime() != null ? exam.getHostelStartTime().toString() : "TBD");
+            }
+
+            map.put("slot", slotMap);
+
+            // Legacy support
+            map.put("examQuota", java.util.Map.of("categoryType", cat));
+
+            return map;
+        }).collect(java.util.stream.Collectors.toList());
+
+        return ResponseEntity.ok(response);
     }
 
     @Autowired
@@ -299,6 +349,72 @@ public class AdminController {
             return ResponseEntity.ok("Quota deleted");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Delete failed: " + e.getMessage());
+        }
+    }
+
+    // ========== NEW: Publish/Stop Controls (OUR LOGIC) ==========
+    @Autowired
+    private com.petbooking.service.ExamAdminService examAdminService;
+
+    /**
+     * Publish slots for a specific department.
+     * Only that department's students can book after this.
+     */
+    @PostMapping("/exams/{examId}/publish")
+    public ResponseEntity<?> publishSlots(@PathVariable Long examId,
+            @RequestBody java.util.Map<String, Long> request) {
+        try {
+            Long deptId = request.get("deptId");
+            if (deptId == null) {
+                // Publish all departments
+                var result = examAdminService.publishAllSlots(examId);
+                return ResponseEntity.ok(result);
+            }
+            var result = examAdminService.publishSlotsForDepartment(examId, deptId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Publish failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Stop all bookings for an exam.
+     * Slots become invisible to students.
+     * Already booked slots remain intact.
+     */
+    @PostMapping("/exams/{examId}/stop")
+    public ResponseEntity<?> stopBookings(@PathVariable Long examId) {
+        try {
+            var result = examAdminService.stopAllBookings(examId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Stop failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get day-wise slot summary for admin dashboard.
+     */
+    @GetMapping("/exams/{examId}/dashboard")
+    public ResponseEntity<?> getDashboard(@PathVariable Long examId) {
+        try {
+            var stats = examAdminService.getDashboardStats(examId);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Dashboard failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get department-wise slot summary.
+     */
+    @GetMapping("/exams/{examId}/department-stats")
+    public ResponseEntity<?> getDepartmentStats(@PathVariable Long examId) {
+        try {
+            var stats = examAdminService.getDepartmentStats(examId);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Stats failed: " + e.getMessage());
         }
     }
 }

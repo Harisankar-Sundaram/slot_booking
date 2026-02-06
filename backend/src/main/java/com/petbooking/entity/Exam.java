@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "exams")
@@ -45,4 +46,20 @@ public class Exam {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Time windows for different student categories
+    @Column(name = "day_scholar_start_time")
+    private LocalTime dayScholarStartTime;
+
+    @Column(name = "day_scholar_end_time")
+    private LocalTime dayScholarEndTime;
+
+    @Column(name = "hostel_start_time")
+    private LocalTime hostelStartTime;
+
+    @Column(name = "hostel_end_time")
+    private LocalTime hostelEndTime;
+
+    @Column(name = "systems_per_slot")
+    private Integer systemsPerSlot = 30;
 }

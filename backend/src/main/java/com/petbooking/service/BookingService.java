@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+
 @Service
 public class BookingService {
 
@@ -192,6 +194,121 @@ public class BookingService {
         result.put("category",
                 studentCategoryType == 1 ? "Day Scholar" : studentCategoryType == 2 ? "Hostel Boys" : "Hostel Girls");
         result.put("message", "Booking successful!");
+
+        return result;
+    }
+
+    // ========== NEW: Atomic Seat-Based Booking (OUR LOGIC) ==========
+    @Autowired
+    private ExamSlotSeatRepository slotSeatRepository;
+    @Autowired
+    private ExamRepository examRepository;
+
+    /**
+     * Book a seat using atomic UPDATE (race-condition safe).
+     * No SELECT-then-UPDATE race condition possible.
+     * Uses FOR UPDATE SKIP LOCKED for concurrent request handling.
+     */
+    @Transactional
+    public java.util.Map<String, Object> bookSeat(String rollNo, Long examId, java.time.LocalDate slotDate) {
+        // 1. Validate Student
+        Student student = studentRepository.findById(rollNo)
+                .orElseThrow(() -> new RuntimeException("Student not found"));
+
+        // 2. Check if student already booked this exam
+        if (slotSeatRepository.existsByExamExamIdAndRollNumber(examId, rollNo)) {
+            throw new RuntimeException("You have already booked this exam");
+        }
+
+        // 3. Map student category to categoryType
+        Integer categoryType;
+        switch (student.getCategory()) {
+            case DAY:
+                categoryType = 1;
+                break;
+            case HOSTEL_MALE:
+                categoryType = 2;
+                break;
+            case HOSTEL_FEMALE:
+                categoryType = 3;
+                break;
+            default:
+                throw new RuntimeException("Unknown student category");
+        }
+
+        Long deptId = student.getDepartment().getDeptId();
+
+        // 4. Atomic booking - single UPDATE query, no race condition
+        int updated = slotSeatRepository.atomicBookSlot(examId, deptId, categoryType, slotDate, rollNo);
+
+        if (updated == 0) {
+            throw new RuntimeException("No slots available for your selection. Please try another date.");
+        }
+
+        // 5. Get booked slot details for response
+        ExamSlotSeat bookedSlot = slotSeatRepository.findByExamIdAndRollNumber(examId, rollNo)
+                .orElseThrow(() -> new RuntimeException("Booking failed unexpectedly"));
+
+        Exam exam = bookedSlot.getExam();
+
+        // 6. Build response with slot details
+        var result = new java.util.HashMap<String, Object>();
+        result.put("slotId", bookedSlot.getSlotId());
+        result.put("rollNo", rollNo);
+        result.put("examId", examId);
+        result.put("examName", exam.getExamName());
+        result.put("slotDate", bookedSlot.getSlotDate().toString());
+        result.put("department", student.getDepartment().getDeptCode());
+        result.put("category", categoryType == 1 ? "Day Scholar" : categoryType == 2 ? "Hostel Boys" : "Hostel Girls");
+        result.put("status", "BOOKED");
+        result.put("message", "Booking successful!");
+
+        // Include time window based on category
+        if (categoryType == 1) {
+            result.put("startTime",
+                    exam.getDayScholarStartTime() != null ? exam.getDayScholarStartTime().toString() : "TBD");
+            result.put("endTime", exam.getDayScholarEndTime() != null ? exam.getDayScholarEndTime().toString() : "TBD");
+        } else {
+            result.put("startTime", exam.getHostelStartTime() != null ? exam.getHostelStartTime().toString() : "TBD");
+            result.put("endTime", exam.getHostelEndTime() != null ? exam.getHostelEndTime().toString() : "TBD");
+        }
+
+        return result;
+    }
+
+    /**
+     * Get student's booked slot for an exam.
+     */
+    public java.util.Map<String, Object> getStudentBooking(String rollNo) {
+        var bookedSlot = slotSeatRepository.findByRollNumber(rollNo);
+
+        if (bookedSlot.isEmpty()) {
+            return null;
+        }
+
+        ExamSlotSeat slot = bookedSlot.get();
+        Exam exam = slot.getExam();
+
+        Integer categoryType = slot.getCategoryType();
+
+        var result = new java.util.HashMap<String, Object>();
+        result.put("slotId", slot.getSlotId());
+        result.put("examId", exam.getExamId());
+        result.put("examName", exam.getExamName());
+        result.put("slotDate", slot.getSlotDate().toString());
+        result.put("deptCode", slot.getDepartment().getDeptCode());
+        result.put("category", categoryType == 1 ? "Day Scholar" : categoryType == 2 ? "Hostel Boys" : "Hostel Girls");
+        result.put("status", slot.getStatus());
+
+        // Include time window based on category
+        if (categoryType == 1) {
+            result.put("startTime",
+                    exam.getDayScholarStartTime() != null ? exam.getDayScholarStartTime().toString() : "TBD");
+            result.put("endTime", exam.getDayScholarEndTime() != null ? exam.getDayScholarEndTime().toString() : "TBD");
+        } else {
+            result.put("startTime", exam.getHostelStartTime() != null ? exam.getHostelStartTime().toString() : "TBD");
+            result.put("endTime", exam.getHostelEndTime() != null ? exam.getHostelEndTime().toString() : "TBD");
+        }
 
         return result;
     }
