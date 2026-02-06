@@ -337,17 +337,26 @@ function BookingViewer() {
         });
     }, []);
 
+    const handleDelete = async (bookingId) => {
+        if (!confirm("Are you sure you want to delete this booking?")) return;
+        try {
+            await axios.delete(`/api/admin/bookings/${bookingId}`);
+            setBookings(bookings.filter(b => b.bookingId !== bookingId));
+            alert("Booking deleted successfully.");
+        } catch (err) {
+            alert("Failed to delete booking: " + (err.response?.data?.message || err.message));
+        }
+    };
+
     const formatDate = (dateVal) => {
         if (!dateVal) return "";
         if (Array.isArray(dateVal)) {
-            // Handle [year, month, day] format
             const [y, m, d] = dateVal;
             return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         }
         return dateVal;
     };
 
-    // Extract unique dates and times for filters
     const uniqueDates = [...new Set(bookings.map(b => {
         const d = b.slot?.slotDate || b.slot?.examDate || b.examQuota?.exam?.startingDate;
         return formatDate(d);
@@ -355,7 +364,6 @@ function BookingViewer() {
 
     const uniqueTimes = [...new Set(bookings.map(b => b.slot?.startTime).filter(Boolean))].sort();
 
-    // Filter logic
     const filteredBookings = bookings.filter(b => {
         const matchCategory = filterCategory === "ALL" ||
             (b.slot?.category === filterCategory) ||
@@ -424,6 +432,7 @@ function BookingViewer() {
                             <th className="p-3">Category</th>
                             <th className="p-3">Exam Date</th>
                             <th className="p-3">Time</th>
+                            <th className="p-3 text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -455,11 +464,21 @@ function BookingViewer() {
                                         {formatDate(b.slot?.slotDate || b.slot?.examDate || b.examQuota?.exam?.startingDate)}
                                     </td>
                                     <td className="p-3">{b.slot?.startTime || "09:00 - 17:00"}</td>
+                                    <td className="p-3 text-center">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:border-red-200"
+                                            onClick={() => handleDelete(b.bookingId)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="6" className="p-8 text-center text-gray-500 italic">
+                                <td colSpan="7" className="p-8 text-center text-gray-500 italic">
                                     No bookings found matching filters.
                                 </td>
                             </tr>
@@ -1237,7 +1256,7 @@ function ExamManager() {
                                                                             {ds.publishedSlots > 0 ? 'PUBLISHED' : 'DRAFT'}
                                                                         </span>
                                                                     </td>
-                                                                    <td className="p-3 text-center">
+                                                                    <td className="p-3 text-center flex justify-center gap-2">
                                                                         <Button size="sm" variant="outline"
                                                                             disabled={ds.publishedSlots > 0}
                                                                             className={ds.publishedSlots > 0 ? "opacity-50" : "text-indigo-600 border-indigo-200 hover:bg-indigo-50"}
@@ -1255,6 +1274,26 @@ function ExamManager() {
                                                                         >
                                                                             {ds.publishedSlots > 0 ? "Live" : "Publish"}
                                                                         </Button>
+
+                                                                        {ds.publishedSlots > 0 && (
+                                                                            <Button size="sm" variant="outline"
+                                                                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                                                                onClick={async () => {
+                                                                                    if (confirm(`STOP bookings for ${ds.deptCode}?`)) {
+                                                                                        try {
+                                                                                            await axios.post(`/api/admin/exams/${exam.examId}/stop`, { deptId: ds.deptId });
+                                                                                            alert(`Stopped bookings for ${ds.deptCode}`);
+                                                                                            // Refresh
+                                                                                            const dpReq = await axios.get(`/api/admin/exams/${exam.examId}/department-stats`);
+                                                                                            exam.deptStats = dpReq.data;
+                                                                                            setExams([...exams]);
+                                                                                        } catch (e) { alert("Failed: " + e.message); }
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                Stop
+                                                                            </Button>
+                                                                        )}
                                                                     </td>
                                                                 </tr>
                                                             ))}

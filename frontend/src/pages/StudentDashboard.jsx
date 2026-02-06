@@ -219,27 +219,27 @@ export default function StudentDashboard() {
                             <X className="h-5 w-5 text-gray-500" />
                         </button>
 
-                        <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl w-24 h-24 mx-auto mb-6 flex items-center justify-center shadow-lg shadow-green-200 relative -mt-16 border-4 border-white">
+                        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-6 rounded-2xl w-24 h-24 mx-auto mb-6 flex items-center justify-center shadow-lg shadow-purple-200 relative -mt-16 border-4 border-white">
                             <CheckCircle className="h-12 w-12 text-white" />
                         </div>
 
                         <h2 className="text-3xl font-black text-gray-900 mb-2">Admit Card</h2>
                         <p className="text-gray-500 mb-8 font-medium">Official Exam Slot Booking</p>
 
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100 text-left space-y-4 mb-6 shadow-sm">
-                            <div className="flex justify-between items-center border-b border-green-100 pb-4">
+                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-6 border border-purple-100 text-left space-y-4 mb-6 shadow-sm">
+                            <div className="flex justify-between items-center border-b border-purple-100 pb-4">
                                 <span className="text-gray-500 font-medium">Exam</span>
                                 <span className="font-black text-gray-900 text-lg">{ticketModal.examName}</span>
                             </div>
-                            <div className="flex justify-between items-center border-b border-green-100 pb-4">
+                            <div className="flex justify-between items-center border-b border-purple-100 pb-4">
                                 <span className="text-gray-500 font-medium flex items-center gap-2"><Calendar className="h-4 w-4" /> Date</span>
                                 <span className="font-bold text-gray-900">{ticketModal.slotDate}</span>
                             </div>
-                            <div className="flex justify-between items-center border-b border-green-100 pb-4">
+                            <div className="flex justify-between items-center border-b border-purple-100 pb-4">
                                 <span className="text-gray-500 font-medium flex items-center gap-2"><Clock className="h-4 w-4" /> Time</span>
                                 <span className="font-bold text-gray-900">{ticketModal.startTime} - {ticketModal.endTime}</span>
                             </div>
-                            <div className="flex justify-between items-center border-b border-green-100 pb-4">
+                            <div className="flex justify-between items-center border-b border-purple-100 pb-4">
                                 <span className="text-gray-500 font-medium flex items-center gap-2"><MapPin className="h-4 w-4" /> Department</span>
                                 <span className="font-bold text-gray-900">{ticketModal.department || ticketModal.deptCode}</span>
                             </div>
@@ -350,19 +350,45 @@ export default function StudentDashboard() {
                     </div>
                 )}
 
-                {/* Header Banner - Only show if no exam selected AND no bookings */}
-                {!selectedExam && myBookings.length === 0 && (
-                    <div className="bg-gradient-to-r from-purple-100 to-indigo-100 border-2 border-purple-200 rounded-[2rem] p-8 mb-12 flex flex-col md:flex-row items-start md:items-center gap-6 shadow-lg shadow-purple-100">
-                        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-3 rounded-2xl text-white shadow-lg shadow-purple-200">
-                            <Info className="h-8 w-8" />
+                {/* Header Banner - Information Hub */}
+                {!selectedExam && (
+                    <div className="bg-gradient-to-r from-purple-600 to-indigo-700 border-2 border-purple-200 rounded-[2rem] p-8 mb-12 flex flex-col md:flex-row items-center gap-8 shadow-2xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 transition-transform group-hover:scale-110"></div>
+                        <div className="bg-white/20 backdrop-blur-md p-4 rounded-3xl text-white shadow-xl relative z-10">
+                            <Info className="h-10 w-10" />
                         </div>
-                        <div className="flex-1">
-                            <h2 className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">Booking Dashboard</h2>
-                            <ul className="text-purple-900/80 text-sm space-y-1 font-medium">
-                                <li>• Browse available exams below.</li>
-                                <li>• Once booked, your ticket will appear here.</li>
-                                <li>• You can book different slots for different exams.</li>
-                            </ul>
+                        <div className="flex-1 relative z-10 text-white">
+                            <h2 className="text-2xl font-black mb-3 uppercase tracking-wider">Important Instructions</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <ul className="space-y-2 text-purple-100 text-sm font-medium">
+                                    <li className="flex items-center gap-2">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-purple-300"></div>
+                                        Choose your preferred exam from the list below.
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-purple-300"></div>
+                                        Available slots are shown based on your category.
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-purple-300"></div>
+                                        One booking is allowed per exam.
+                                    </li>
+                                </ul>
+                                <ul className="space-y-2 text-purple-100 text-sm font-medium">
+                                    <li className="flex items-center gap-2">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-purple-300"></div>
+                                        Confirm your choice to generate the Admit Card.
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-purple-300"></div>
+                                        Tickets can be viewed/printed anytime from dashboard.
+                                    </li>
+                                    <li className="flex items-center gap-2 text-yellow-300 font-bold">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        Arrive 15 mins before your slot time.
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 )}

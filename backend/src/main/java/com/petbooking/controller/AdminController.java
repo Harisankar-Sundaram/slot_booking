@@ -378,17 +378,34 @@ public class AdminController {
     }
 
     /**
-     * Stop all bookings for an exam.
-     * Slots become invisible to students.
-     * Already booked slots remain intact.
+     * Stop bookings for an exam or specific department.
      */
     @PostMapping("/exams/{examId}/stop")
-    public ResponseEntity<?> stopBookings(@PathVariable Long examId) {
+    public ResponseEntity<?> stopBookings(@PathVariable Long examId,
+            @RequestBody(required = false) java.util.Map<String, Long> request) {
         try {
-            var result = examAdminService.stopAllBookings(examId);
+            Long deptId = request != null ? request.get("deptId") : null;
+            if (deptId == null) {
+                var result = examAdminService.stopAllBookings(examId);
+                return ResponseEntity.ok(result);
+            }
+            var result = examAdminService.stopSlotsForDepartment(examId, deptId);
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Stop failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Cancel/Delete a specific booking.
+     */
+    @DeleteMapping("/bookings/{slotId}")
+    public ResponseEntity<?> deleteBooking(@PathVariable Long slotId) {
+        try {
+            var result = examAdminService.cancelBooking(slotId);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Cancel failed: " + e.getMessage());
         }
     }
 

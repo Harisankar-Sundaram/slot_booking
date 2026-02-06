@@ -67,6 +67,33 @@ public class ExamAdminService {
     }
 
     /**
+     * Stop bookings for a specific department.
+     */
+    @Transactional
+    public Map<String, Object> stopSlotsForDepartment(Long examId, Long deptId) {
+        int updated = slotSeatRepository.stopSlotsForDepartment(examId, deptId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("examId", examId);
+        result.put("deptId", deptId);
+        result.put("slotsStopped", updated);
+        result.put("message", "Stopped " + updated + " slots for department");
+        return result;
+    }
+
+    /**
+     * Cancel a specific booking.
+     */
+    @Transactional
+    public Map<String, Object> cancelBooking(Long slotId) {
+        int updated = slotSeatRepository.cancelBooking(slotId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("slotId", slotId);
+        result.put("success", updated > 0);
+        result.put("message", updated > 0 ? "Booking cancelled" : "Booking not found or already available");
+        return result;
+    }
+
+    /**
      * Get day-wise slot summary for admin dashboard.
      * Shows total, booked, and available slots per day per category.
      */
