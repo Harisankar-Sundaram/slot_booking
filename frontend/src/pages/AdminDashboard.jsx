@@ -736,7 +736,11 @@ function ExamManager() {
         totalDays: 5,
         examPurpose: "",
         perDeptCapacity: 100,
-        deptCategories: []
+        deptCategories: [],
+        dayScholarStartTime: "09:00",
+        dayScholarEndTime: "12:00",
+        hostelStartTime: "13:00",
+        hostelEndTime: "16:00"
     });
 
     useEffect(() => { loadData(); }, []);
@@ -768,6 +772,33 @@ function ExamManager() {
             alert("Please fill all required fields before calculating quotas.");
             return;
         }
+
+        // ================= DATE & TIME VALIDATION =================
+        const start = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (start < today) {
+            alert("Error: Start Date cannot be in the past.");
+            return;
+        }
+
+        if (end < start) {
+            alert("Error: End Date cannot be before Start Date.");
+            return;
+        }
+
+        if (formData.dayScholarStartTime >= formData.dayScholarEndTime) {
+            alert("Error: Day Scholar Start Time must be before End Time.");
+            return;
+        }
+
+        if (formData.hostelStartTime >= formData.hostelEndTime) {
+            alert("Error: Hostel Start Time must be before End Time.");
+            return;
+        }
+        // ==========================================================
 
         if (strengths.length === 0) {
             alert("No student data found. Please upload student master data first.");
@@ -849,6 +880,12 @@ function ExamManager() {
                 totalDays: formData.totalDays,
                 examPurpose: formData.examPurpose,
                 perDeptCapacity: formData.perDeptCapacity,
+                // Time Windows
+                dayScholarStartTime: formData.dayScholarStartTime,
+                dayScholarEndTime: formData.dayScholarEndTime,
+                hostelStartTime: formData.hostelStartTime,
+                hostelEndTime: formData.hostelEndTime,
+
                 deptCategories: formData.deptCategories.map(d => ({
                     deptId: d.deptId,
                     dayScholarCount: d.dayScholarCount,
@@ -929,6 +966,45 @@ function ExamManager() {
                                     onChange={e => setFormData({ ...formData, endDate: e.target.value })}
                                 />
                             </div>
+
+                            {/* Time Windows */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Day Scholar Time Window</label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        type="time"
+                                        className="h-11 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                        value={formData.dayScholarStartTime}
+                                        onChange={e => setFormData({ ...formData, dayScholarStartTime: e.target.value })}
+                                    />
+                                    <span className="self-center font-bold text-gray-400">to</span>
+                                    <Input
+                                        type="time"
+                                        className="h-11 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                        value={formData.dayScholarEndTime}
+                                        onChange={e => setFormData({ ...formData, dayScholarEndTime: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Hostel Time Window</label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        type="time"
+                                        className="h-11 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                        value={formData.hostelStartTime}
+                                        onChange={e => setFormData({ ...formData, hostelStartTime: e.target.value })}
+                                    />
+                                    <span className="self-center font-bold text-gray-400">to</span>
+                                    <Input
+                                        type="time"
+                                        className="h-11 bg-gray-50 border-gray-200 focus:bg-white transition-colors"
+                                        value={formData.hostelEndTime}
+                                        onChange={e => setFormData({ ...formData, hostelEndTime: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
                             <div className="col-span-1 md:col-span-2 space-y-2">
                                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Exam Purpose</label>
                                 <textarea
