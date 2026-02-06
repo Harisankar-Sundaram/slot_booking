@@ -362,9 +362,13 @@ public class AdminController {
      */
     @PostMapping("/exams/{examId}/publish")
     public ResponseEntity<?> publishSlots(@PathVariable Long examId,
-            @RequestBody java.util.Map<String, Long> request) {
+            @RequestBody(required = false) java.util.Map<String, Object> request) {
         try {
-            Long deptId = request.get("deptId");
+            Long deptId = null;
+            if (request != null && request.get("deptId") != null) {
+                deptId = ((Number) request.get("deptId")).longValue();
+            }
+
             if (deptId == null) {
                 // Publish all departments
                 var result = examAdminService.publishAllSlots(examId);
@@ -382,9 +386,13 @@ public class AdminController {
      */
     @PostMapping("/exams/{examId}/stop")
     public ResponseEntity<?> stopBookings(@PathVariable Long examId,
-            @RequestBody(required = false) java.util.Map<String, Long> request) {
+            @RequestBody(required = false) java.util.Map<String, Object> request) {
         try {
-            Long deptId = request != null ? request.get("deptId") : null;
+            Long deptId = null;
+            if (request != null && request.get("deptId") != null) {
+                deptId = ((Number) request.get("deptId")).longValue();
+            }
+
             if (deptId == null) {
                 var result = examAdminService.stopAllBookings(examId);
                 return ResponseEntity.ok(result);
